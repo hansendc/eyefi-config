@@ -1,0 +1,57 @@
+Just:
+
+	make
+
+Then:
+
+To scan for networks:
+
+$ ./eyefi-config -s
+Scanned wireless networks:
+'MYESSID' type(2): WPA, strength: 33
+'VEXD2' type(1): WEP, strength: -1
+
+Fetch the log:
+
+$ ./eyefi-config -l
+fetching EyeFi card log part 1/4...done
+fetching EyeFi card log part 2/4...done
+fetching EyeFi card log part 3/4...done
+fetching EyeFi card log part 4/4...done
+56:48] Done scanning for new photos. Uploads not pending.
+[56:48] Done scanning for all photos. Uploads not pending.
+[802:37]   EAPOL-Key type=2
+[802:37] WPA: RX message 1 of 4-Way Handshake from 00:11:95:aa:bb:cc (ver=2)
+[802:37] WPA: Sending EAPOL-Key 2/4
+...
+
+Test a network (without adding to the card:
+
+# ./eyefitest -t ESSID -p password
+trying to connect to WPA network: 'MYESSID' with passphrase: 'password'
+Testing connecion to 'MYESSID' (1): locating network
+Testing connecion to 'MYESSID' (2): verifying network key.....
+Testing connecion to 'MYESSID' (3): waiting for DHCP..................
+Testing connecion to 'MYESSID' (4): testing connection to Eye-Fi server.....
+Testing connecion to 'MYESSID' (5): success
+Succeeded connecting to: 'MYESSID'
+
+Add a network:
+
+$ ./eyefi-config -a MYESSID -p password
+trying to connect to WPA network: 'MYESSID' with passphrase: 'password'
+Testing connecion to 'MYESSID' (1): locating network
+Testing connecion to 'MYESSID' (2): verifying network key.....
+Testing connecion to 'MYESSID' (3): waiting for DHCP..................
+Testing connecion to 'MYESSID' (4): testing connection to Eye-Fi server.....
+Testing connecion to 'MYESSID' (5): success
+Succeeded connecting to: 'MYESSID'
+
+List the networks configured on the card:
+
+$ ./eyefi-config -c
+configured wireless networks:
+'bcdefghijkl'
+'MYESSID'
+
+

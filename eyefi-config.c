@@ -843,6 +843,7 @@ void usage(void)
 	printf("  -b		reboot card\n");
 	printf("  -d level	set debugging level (default: 1)\n");
 	printf("  -k		print card unique key\n");
+	printf("  -l		dump card log\n");
 	printf("  -m		print card mac\n");
 	exit(4);
 }

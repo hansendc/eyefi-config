@@ -5,6 +5,6 @@ eyefi-config: eyefi-config.c
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm eyefi-config
+	rm eyefi-config core 
 
 

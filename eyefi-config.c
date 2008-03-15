@@ -21,16 +21,40 @@
 
 #define O_DIRECT        00040000        /* direct disk access hint */
 
-#define MOUNT "/media/EYE-FI/"
-#define PATH MOUNT "eyefi/"
-#define REQC PATH "REQC"
-#define REQM PATH "REQM"
-#define RSPC PATH "RSPC"
-#define RSPM PATH "RSPM"
+enum eyefi_file {
+	REQC,
+	REQM,
+	RSPC,
+	RSPM
+};
+ 
+#define PATHNAME_MAX 4096
+char eyefi_mount[PATHNAME_MAX]; // PATH_MAX anyone?
+static char *__eyefi_file(enum eyefi_file file)
+{
+	switch (file) {
+	case REQC: return "reqc";
+	case REQM: return "reqm";
+	case RSPC: return "rspc";
+	case RSPM: return "rspm";
+	}
+
+	return NULL;
+}
+
+static char *eyefi_file(enum eyefi_file file)
+{
+	char *filename = __eyefi_file(file);
+	char *full = malloc(PATHNAME_MAX);
+
+	sprintf(&full[0], "%s/EyeFi/%s", eyefi_mount, filename);
+	return full;
+}
+
 
 #define BUFSZ 16384
 #define EYEFI_BUF_SIZE 16384
-char unaligned_buf[BUFSZ*10];
+char unaligned_buf[BUFSZ*2];
 void *buf;
 
 
@@ -127,9 +151,9 @@ struct card_seq_num {
 	u32 seq;
 } __attribute__((packed));
 
-void read_from(char *file);
-void write_to(char *file, void *stuff, int len);
-struct card_seq_num read_seq_from(char *file)
+void read_from(enum eyefi_file);
+void write_to(enum eyefi_file, void *, int);
+struct card_seq_num read_seq_from(enum eyefi_file file)
 {
 	struct card_seq_num *ret;
 	read_from(file);
@@ -176,30 +200,33 @@ void init_card()
 	if (buf != NULL)
 		return;
 
+	debug_printf(2, "Initializing card...\n");
 	align_buf();
 	zero_card_files();
 	seq = read_seq_from(RSPC);
 	if (seq.seq == 0)
 		seq.seq = 0x1234;
+	debug_printf(2, "Done initializing card...\n");
 }
 
 void open_error(char *file)
 {
 	fprintf(stderr, "unable to open '%s'\n", file);
-	fprintf(stderr, "Is the Eye-Fi card inserted and mounted at: %s ?\n", MOUNT);
+	fprintf(stderr, "Is the Eye-Fi card inserted and mounted at: %s ?\n", eyefi_mount);
 	fprintf(stderr, "Do you have write permissions to it?\n");
 	if (debug_level > 1)
 		perror("bad open");
 	exit(1);
 }
 
-void read_from(char *file)
+void read_from(enum eyefi_file __file)
 {
 	u8 c;
 	int i;
 	int ret, retcntl;
 	int fd;
 	int zeros = 0;
+	char *file = eyefi_file(__file);
 	
 	init_card();
 
@@ -229,21 +256,24 @@ void read_from(char *file)
 	//if (zeros)
 	//	printf(" zeros: %d", zeros);
 	//fsync(fd);
+	free(file);
 	close(fd);
 }
 
-void write_to(char *file, void *stuff, int len)
+void write_to(enum eyefi_file __file, void *stuff, int len)
 {
-	//printf("not writing to '%s'\n", file);
-	//return;
 	int ret;
 	int fd;
+	char *file = eyefi_file(__file);
+
 	init_card();
 	if (len == -1)
 		len = strlen(stuff);
 
-	if (debug_level > 3)
+	if (debug_level > 3) {
+		debug_printf(3, "%s('%s', ..., %d)\n", __func__, file, len);
 		dumpbuf(stuff, len);
+	}
 	memset(buf, 0, BUFSZ);
 	memcpy(buf, stuff, len);
 	fd = open(file, O_RDWR|O_DIRECT|O_CREAT, 0600);
@@ -258,6 +288,7 @@ void write_to(char *file, void *stuff, int len)
 	debug_printf(3, "wrote %d bytes to '%s' (string was %d bytes)\n", ret, file, len);
 	if (ret < 0)
 		exit(ret);
+	free(file);
 }	
 
 /*
@@ -463,7 +494,7 @@ int atoh(char c)
 		return c - '0';
 	else if ((c >= 'a') && (c <= 'z'))
 		return (c - 'a') + 10;
-	debug_printf(0, "non-hex character: '%c'/'%c'\n", c, lc);
+	debug_printf(5, "non-hex character: '%c'/'%c'\n", c, lc);
 	return 0;
 }
 
@@ -815,7 +846,7 @@ int get_log(void)
 	// we are fetching looks valid
 	int null_bytes_left = 20;
 	if (resbuf[log_end] != 0) {
-		fprintf(stderr, "error: unexpected last byte (%ld/0x%lx) of log: %02x\n",
+		debug_printf(2, "error: unexpected last byte (%ld/0x%lx) of log: %02x\n",
 				log_end, log_end, resbuf[log_end]);
 		for (i=0; i<log_size; i++) {
 			if (resbuf[i])
@@ -828,6 +859,96 @@ int get_log(void)
 	}
 	free(resbuf);
 	return 0;
+}
+
+int atoo(char o)
+{
+	if ((o >= '0') && (o <= '7'))
+		return atoh(o);
+	return -1;
+}
+
+int octal_esc_to_chr(char *input) {
+	int i=0;
+	int ret = 0;
+	int len = strlen(input);
+
+	//intf("%s('%s')\n", __func__, input);
+	if (input[0] != '\\')
+		return -1;
+	if (len < 4)
+		return -1;
+
+	for (i=1; i < len ; i++) {
+		if (i > 3)
+			break;
+		int tmp = atoo(input[i]);
+		//intf("tmp: %d\n", tmp);
+		if (tmp < 0)
+			return tmp;
+		ret <<= 3;
+		ret += tmp;
+	}
+	return ret;
+}
+
+char *replace_escapes(char *str)
+{
+	int i;
+	int output = 0;
+	debug_printf(4, "%s(%s)\n", __func__, str);
+	for (i=0; i < strlen(str); i++) {
+		int esc = octal_esc_to_chr(&str[i]);
+		if (esc >= 0) {
+			str[output++] = esc;
+			i += 3;
+			continue;
+		}
+		str[output++] = str[i];
+	}
+	str[output] = '\0';
+	debug_printf(4, "'%s' %d\n", str, output);
+	return str;
+}
+
+#define LINEBUFSZ 1024
+void locate_eyefi_mount(void)
+{
+	char line[LINEBUFSZ];
+	FILE *mounts = fopen("/proc/mounts", "r");
+
+	char dev[LINEBUFSZ];
+	char mnt[LINEBUFSZ];
+	char fs[LINEBUFSZ];
+	char opt[LINEBUFSZ];
+	int foo;
+	int bar;
+	while (fgets(&line[0], 1023, mounts)) {
+		int read;
+		read = sscanf(&line[0], "%s %s %s %s %d %d",
+				&dev[0], &mnt[0], &fs[0], &opt[0],
+				&foo, &bar);
+		// only look at fat filesystems:
+		if (strcmp(fs, "msdos") && strcmp(fs, "vfat")) {
+			debug_printf(2, "fs at '%s' is not fat, skipping...\n", mnt);
+			continue;
+		}
+		// Linux's /proc/mounts has spaces like this \040
+		replace_escapes(&mnt[0]);
+		strcpy(&eyefi_mount[0], &mnt[0]);
+		char *file = eyefi_file(REQM);
+		debug_printf(2, "looking for EyeFi file here: '%s'\n", file);
+
+		struct stat statbuf;
+		int statret;
+		statret = stat(file, &statbuf);
+		free(file);
+		if (statret)
+			continue;
+		debug_printf(1, "located EyeFi card at: %s\n", eyefi_mount);
+		break;
+	}
+	fclose(mounts);
 }
 
 void usage(void)
@@ -854,6 +975,8 @@ int main(int argc, char **argv)
 		usage();
 
 	debug_printf(3, "%s starting...\n", argv[0]);
+	
+	locate_eyefi_mount();
 
 	//static int passed_wep = 0;
 	//static int passed_wpa = 0;

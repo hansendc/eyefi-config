@@ -19,6 +19,8 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include "eyefi-config.h"
+
 #define O_DIRECT        00040000        /* direct disk access hint */
 
 enum eyefi_file {
@@ -63,23 +65,6 @@ int debug_level = 1;
 	if ((level) <= debug_level)		\
 		fprintf(stderr, ## args);	\
 	} while(0)
-
-/*
- * Do some kernel-style types to make
- * definitions shorter.
- */
-typedef unsigned long u32;
-typedef unsigned char u8;
-
-static inline u32 swap_bytes(u32 src)
-{
-        unsigned int dest = 0;
-        dest |= (src & 0xff000000) >> 24;
-        dest |= (src & 0x00ff0000) >>  8;
-        dest |= (src & 0x0000ff00) <<  8;
-        dest |= (src & 0x000000ff) << 24;
-        return dest;
-}
 
 /*
  * Just a few functions so that I can't easily forget about
@@ -495,12 +480,14 @@ int atoh(char c)
 	else if ((c >= 'a') && (c <= 'z'))
 		return (c - 'a') + 10;
 	debug_printf(5, "non-hex character: '%c'/'%c'\n", c, lc);
-	return 0;
+	return -1;
 }
 
 /*
  * Take a string like "0ab1" and make it
  * a series of bytes: { 0x0a, 0xb1 }
+ *
+ * @len is the strlen() of the ascii
  *
  * Destroys the original string.
  */
@@ -513,9 +500,11 @@ char *convert_ascii_to_hex(char *ascii, int len)
 		exit(2);
 	}
 	for (i=0; i < len; i+=2) {
-		u8 high = atoh(ascii[i]);
-		u8 low  = atoh(ascii[i+1]);
+		int high = atoh(ascii[i]);
+		int low  = atoh(ascii[i+1]);
 		u8 byte = (high<<4 | low);
+		if (high < 0 || low < 0)
+			return NULL;
 		debug_printf(6, "high: %02x low: %02x, both: %02x\n", high, low, byte);
 		ascii[i/2] = byte;
 	}
@@ -528,44 +517,20 @@ char *convert_ascii_to_hex(char *ascii, int len)
 
 struct wpa_key *make_wpa_key(char *essid, char *pass)
 {
-	char program[] = PASSPHRASE_PROG;
-	// 7 for 2 spaces, 4 quotes and a \0
-	char redirect[] = " 2> /dev/null";
-	char *cmdbuf = malloc(strlen(essid) + strlen(pass) + strlen(program) + 7 + 
-			strlen(redirect));
-
-	if (!cmdbuf)
-		return NULL;
-
-	sprintf(cmdbuf, "%s '%s' '%s' %s", program, essid, pass, redirect);
-	FILE *pipe = popen(cmdbuf, "r");
-	if (!pipe) {
-		perror("\nunable to execute " PASSPHRASE_PROG);
-		return NULL;
-	}
-	
-	int key_chars = WPA_KEY_BYTES*2;
-	char hex_key_in_ascii[key_chars+1];
-	char line[1024];
-	int read = 0;
-	while (fgets(&line[0], 1023, pipe)) {
-		debug_printf(4, "read from %s: '%s'\n", PASSPHRASE_PROG, line);
-		read = sscanf(&line[0], "	psk=%64s", &hex_key_in_ascii[0]);
-		if (read == 0)
-			continue;
-		break;
-	}
-	int exit_code = pclose(pipe);
-	if (!read || exit_code) {
-		fprintf(stderr, "\nunable to read wpa key from %s\n", PASSPHRASE_PROG);
-		fprintf(stderr, "Is wpa_supplicant installed?\n");
-		exit(4);
-	}
-	debug_printf(4, "ascii key: '%s'\n", hex_key_in_ascii);
-	char *hex_key = convert_ascii_to_hex(hex_key_in_ascii, key_chars);
 	struct wpa_key *key = malloc(sizeof(*key));
-	memcpy(&key->key[0], hex_key, WPA_KEY_BYTES);
-	free(cmdbuf);
+
+	if (strlen(pass) == WPA_KEY_BYTES*2) {
+		char *hex_pass;
+		debug_printf(2, "Interpreting password as hex WPA key\n");
+		hex_pass = convert_ascii_to_hex(pass, WPA_KEY_BYTES*2);
+		if (!hex_pass)
+			return NULL;
+		memcpy(&key->key[0], pass, WPA_KEY_BYTES);
+	} else {
+		debug_printf(2, "Interpreting password as ASCII WPA key\n");
+	        pbkdf2_sha1(pass, essid, strlen(essid), 4096,
+			    &key->key[0], WPA_KEY_BYTES);
+	}
 	return key;
 }
 

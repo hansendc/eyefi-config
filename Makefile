@@ -1,10 +1,12 @@
 CC=gcc
 CFLAGS=-g -Wall
 
-eyefi-config: eyefi-config.c
-	$(CC) $(CFLAGS) $< -o $@
+OBJS = eyefi-config.o sha1.o md5.o
+
+eyefi-config: $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o $@
 
 clean:
-	rm eyefi-config core 
+	rm eyefi-config core  $(OBJS)
 
 

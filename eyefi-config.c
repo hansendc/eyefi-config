@@ -21,6 +21,12 @@
 
 #include "eyefi-config.h"
 
+int debug_level = 1;
+#define debug_printf(level, args...) do {	\
+	if ((level) <= debug_level)		\
+		fprintf(stderr, ## args);	\
+	} while(0)
+
 #define O_DIRECT        00040000        /* direct disk access hint */
 
 enum eyefi_file {
@@ -32,7 +38,7 @@ enum eyefi_file {
  
 #define PATHNAME_MAX 4096
 char eyefi_mount[PATHNAME_MAX]; // PATH_MAX anyone?
-static char *__eyefi_file(enum eyefi_file file)
+static char *eyefi_file_name(enum eyefi_file file)
 {
 	switch (file) {
 	case REQC: return "reqc";
@@ -44,12 +50,13 @@ static char *__eyefi_file(enum eyefi_file file)
 	return NULL;
 }
 
-static char *eyefi_file(enum eyefi_file file)
+static char *eyefi_file_on(enum eyefi_file file, char *mnt)
 {
-	char *filename = __eyefi_file(file);
+	char *filename = eyefi_file_name(file);
 	char *full = malloc(PATHNAME_MAX);
 
-	sprintf(&full[0], "%s/EyeFi/%s", eyefi_mount, filename);
+	sprintf(&full[0], "%s/EyeFi/%s", mnt, filename);
+	debug_printf(4, "eyefile nr: %d on '%s' is: '%s'\n", file, mnt, &full[0]);
 	return full;
 }
 
@@ -58,13 +65,6 @@ static char *eyefi_file(enum eyefi_file file)
 #define EYEFI_BUF_SIZE 16384
 char unaligned_buf[BUFSZ*2];
 void *buf;
-
-
-int debug_level = 1;
-#define debug_printf(level, args...) do {	\
-	if ((level) <= debug_level)		\
-		fprintf(stderr, ## args);	\
-	} while(0)
 
 /*
  * Just a few functions so that I can't easily forget about
@@ -180,12 +180,144 @@ void zero_card_files(void)
 	read_from(RSPC);
 }
 
+char lower(char c)
+{
+	if ((c >= 'A') && (c <= 'Z'))
+		c += ('a' - 'A');
+	return c;
+}
+
+int atoh(char c)
+{
+	char lc = lower(c);
+	if ((c >= '0') && (c <= '9'))
+		return c - '0';
+	else if ((c >= 'a') && (c <= 'z'))
+		return (c - 'a') + 10;
+	debug_printf(5, "non-hex character: '%c'/'%c'\n", c, lc);
+	return -1;
+}
+
+int atoo(char o)
+{
+	if ((o >= '0') && (o <= '7'))
+		return atoh(o);
+	return -1;
+}
+
+int octal_esc_to_chr(char *input) {
+	int i=0;
+	int ret = 0;
+	int len = strlen(input);
+
+	//intf("%s('%s')\n", __func__, input);
+	if (input[0] != '\\')
+		return -1;
+	if (len < 4)
+		return -1;
+
+	for (i=1; i < len ; i++) {
+		if (i > 3)
+			break;
+		int tmp = atoo(input[i]);
+		//intf("tmp: %d\n", tmp);
+		if (tmp < 0)
+			return tmp;
+		ret <<= 3;
+		ret += tmp;
+	}
+	return ret;
+}
+
+char *replace_escapes(char *str)
+{
+	int i;
+	int output = 0;
+	debug_printf(4, "%s(%s)\n", __func__, str);
+	for (i=0; i < strlen(str); i++) {
+		int esc = octal_esc_to_chr(&str[i]);
+		if (esc >= 0) {
+			str[output++] = esc;
+			i += 3;
+			continue;
+		}
+		str[output++] = str[i];
+	}
+	str[output] = '\0';
+	debug_printf(4, "replaced escapes in: '%s' bytes of output: %d\n", str, output);
+	return str;
+}
+
+#define LINEBUFSZ 1024
+char *locate_eyefi_mount(void)
+{
+	char line[LINEBUFSZ];
+	FILE *mounts = fopen("/proc/mounts", "r");
+
+	char dev[LINEBUFSZ];
+	char mnt[LINEBUFSZ];
+	char fs[LINEBUFSZ];
+	char opt[LINEBUFSZ];
+	int foo;
+	int bar;
+	
+	if (strlen(eyefi_mount))
+		return &eyefi_mount[0];
+
+	while (fgets(&line[0], 1023, mounts)) {
+		int read;
+		read = sscanf(&line[0], "%s %s %s %s %d %d",
+				&dev[0], &mnt[0], &fs[0], &opt[0],
+				&foo, &bar);
+		// only look at fat filesystems:
+		if (strcmp(fs, "msdos") && strcmp(fs, "vfat")) {
+			debug_printf(2, "fs at '%s' is not fat, skipping...\n", mnt);
+			continue;
+		}
+		// Linux's /proc/mounts has spaces like this \040
+		replace_escapes(&mnt[0]);
+		char *file = eyefi_file_on(REQM, &mnt[0]);
+		debug_printf(2, "looking for EyeFi file here: '%s'\n", file);
+
+		struct stat statbuf;
+		int statret;
+		statret = stat(file, &statbuf);
+		free(file);
+		if (statret) {
+			debug_printf(2, "fs at: %s is not an Eye-Fi card, skipping...\n",
+					eyefi_mount);
+			continue;
+		}
+		strcpy(&eyefi_mount[0], &mnt[0]);
+		debug_printf(1, "located EyeFi card at: '%s'\n", eyefi_mount);
+		break;
+	}
+	fclose(mounts);
+	if (strlen(eyefi_mount))
+		return &eyefi_mount[0];
+	return NULL;
+}
+
 void init_card()
 {
+	char *mnt;
 	if (buf != NULL)
 		return;
 
 	debug_printf(2, "Initializing card...\n");
+	mnt = locate_eyefi_mount();
+	if (mnt == NULL) {
+		debug_printf(1, "unable to locate Eye-Fi card\n");
+		if (debug_level < 5)
+			debug_printf(0, "please run with '-d5' option and report the output\n");
+		else {
+			debug_printf(0, "----------------------------------------------\n");
+			debug_printf(0, "Debug information:\n");
+			system("cat /proc/mounts >&2");
+		}
+		exit(1);
+	}
+
 	align_buf();
 	zero_card_files();
 	seq = read_seq_from(RSPC);
@@ -194,11 +326,20 @@ void init_card()
 	debug_printf(2, "Done initializing card...\n");
 }
 
+static char *eyefi_file(enum eyefi_file file)
+{
+	init_card();
+	return eyefi_file_on(file, &eyefi_mount[0]);
+}
+
 void open_error(char *file)
 {
 	fprintf(stderr, "unable to open '%s'\n", file);
 	fprintf(stderr, "Is the Eye-Fi card inserted and mounted at: %s ?\n", eyefi_mount);
 	fprintf(stderr, "Do you have write permissions to it?\n");
+	fprintf(stderr, "debug information:\n");
+	if (debug_level > 0)
+		system("cat /proc/mounts >&2");
 	if (debug_level > 1)
 		perror("bad open");
 	exit(1);
@@ -249,9 +390,10 @@ void write_to(enum eyefi_file __file, void *stuff, int len)
 {
 	int ret;
 	int fd;
-	char *file = eyefi_file(__file);
+	char *file;
 
 	init_card();
+       	file = eyefi_file(__file);
 	if (len == -1)
 		len = strlen(stuff);
 
@@ -464,24 +606,6 @@ struct net_request {
 	char essid[ESSID_LEN];
 	struct network_key key;
 } __attribute((packed));
-
-char lower(char c)
-{
-	if ((c >= 'A') && (c <= 'Z'))
-		c += ('a' - 'A');
-	return c;
-}
-
-int atoh(char c)
-{
-	char lc = lower(c);
-	if ((c >= '0') && (c <= '9'))
-		return c - '0';
-	else if ((c >= 'a') && (c <= 'z'))
-		return (c - 'a') + 10;
-	debug_printf(5, "non-hex character: '%c'/'%c'\n", c, lc);
-	return -1;
-}
 
 /*
  * Take a string like "0ab1" and make it
@@ -826,96 +950,6 @@ int get_log(void)
 	return 0;
 }
 
-int atoo(char o)
-{
-	if ((o >= '0') && (o <= '7'))
-		return atoh(o);
-	return -1;
-}
-
-int octal_esc_to_chr(char *input) {
-	int i=0;
-	int ret = 0;
-	int len = strlen(input);
-
-	//intf("%s('%s')\n", __func__, input);
-	if (input[0] != '\\')
-		return -1;
-	if (len < 4)
-		return -1;
-
-	for (i=1; i < len ; i++) {
-		if (i > 3)
-			break;
-		int tmp = atoo(input[i]);
-		//intf("tmp: %d\n", tmp);
-		if (tmp < 0)
-			return tmp;
-		ret <<= 3;
-		ret += tmp;
-	}
-	return ret;
-}
-
-char *replace_escapes(char *str)
-{
-	int i;
-	int output = 0;
-	debug_printf(4, "%s(%s)\n", __func__, str);
-	for (i=0; i < strlen(str); i++) {
-		int esc = octal_esc_to_chr(&str[i]);
-		if (esc >= 0) {
-			str[output++] = esc;
-			i += 3;
-			continue;
-		}
-		str[output++] = str[i];
-	}
-	str[output] = '\0';
-	debug_printf(4, "'%s' %d\n", str, output);
-	return str;
-}
-
-#define LINEBUFSZ 1024
-void locate_eyefi_mount(void)
-{
-	char line[LINEBUFSZ];
-	FILE *mounts = fopen("/proc/mounts", "r");
-
-	char dev[LINEBUFSZ];
-	char mnt[LINEBUFSZ];
-	char fs[LINEBUFSZ];
-	char opt[LINEBUFSZ];
-	int foo;
-	int bar;
-	while (fgets(&line[0], 1023, mounts)) {
-		int read;
-		read = sscanf(&line[0], "%s %s %s %s %d %d",
-				&dev[0], &mnt[0], &fs[0], &opt[0],
-				&foo, &bar);
-		// only look at fat filesystems:
-		if (strcmp(fs, "msdos") && strcmp(fs, "vfat")) {
-			debug_printf(2, "fs at '%s' is not fat, skipping...\n", mnt);
-			continue;
-		}
-		// Linux's /proc/mounts has spaces like this \040
-		replace_escapes(&mnt[0]);
-		strcpy(&eyefi_mount[0], &mnt[0]);
-		char *file = eyefi_file(REQM);
-		debug_printf(2, "looking for EyeFi file here: '%s'\n", file);
-
-		struct stat statbuf;
-		int statret;
-		statret = stat(file, &statbuf);
-		free(file);
-		if (statret)
-			continue;
-		debug_printf(1, "located EyeFi card at: %s\n", eyefi_mount);
-		break;
-	}
-	fclose(mounts);
-}
-
 void usage(void)
 {
 	printf("Usage:\n");
@@ -941,8 +975,6 @@ int main(int argc, char **argv)
 
 	debug_printf(3, "%s starting...\n", argv[0]);
 	
-	locate_eyefi_mount();
-
 	//static int passed_wep = 0;
 	//static int passed_wpa = 0;
 	static int force = 0;
@@ -980,6 +1012,7 @@ int main(int argc, char **argv)
 			break;
 		case 'd':
 			debug_level = atoi(optarg);
+			fprintf(stderr, "set debug level to: %d\n", debug_level);
 			break;
 		case 'k':
 			print_card_key();
@@ -1005,6 +1038,7 @@ int main(int argc, char **argv)
 	debug_printf(3, "after arguments essid: '%s' passwd: '%s'\n", essid, passwd);
 	if (network_action && essid) {
 		int ret = 0;
+		init_card();
 		switch (network_action) {
 		case 't':
 			ret = try_connection_to(essid, passwd);

@@ -413,8 +413,11 @@ void write_to(enum eyefi_file __file, void *stuff, int len)
 	//fsync(fd);
 	close(fd);
 	debug_printf(3, "wrote %d bytes to '%s' (string was %d bytes)\n", ret, file, len);
-	if (ret < 0)
+	if (ret < 0) {
+		fprintf(stderr, "error writing to '%s': ", file);
+		perror("");
 		exit(ret);
+	}
 	free(file);
 }	
 

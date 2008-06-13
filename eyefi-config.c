@@ -169,7 +169,7 @@ struct card_seq_num seq;
  */
 void zero_card_files(void)
 {
-	write_to(REQM, buf, BUFSZ);
+	//write_to(REQM, buf, BUFSZ);
 	write_to(REQC, buf, BUFSZ);
 	write_to(RSPM, buf, BUFSZ);
 	write_to(RSPC, buf, BUFSZ);
@@ -371,7 +371,7 @@ void read_from(enum eyefi_file __file)
 		perror("bad read");
 		exit(1);
 	}
-	debug_printf(3, "read '%s': bytes: %d fcntl: %d\n", file, ret, retcntl);
+	debug_printf(4, "read '%s': bytes: %d fcntl: %d\n", file, ret, retcntl);
 	for (i=0; i < BUFSZ; i++) {
 		c = ((char *)buf)[i];
 		if (c == '\0') {
@@ -460,6 +460,10 @@ struct card_info_rsp_key {
 	struct pascal_string key;
 };
 
+struct card_firmware_info {
+	struct pascal_string info;
+};
+
 #define MAC_BYTES 6
 struct mac_address {
 	u8 length;
@@ -499,7 +503,7 @@ u32 current_seq(void)
 	return seq.seq;
 }
 
-void wait_for_response(void)
+int wait_for_response(void)
 {
 	int i;
 	debug_printf(3, "waiting for response...\n");
@@ -513,9 +517,14 @@ void wait_for_response(void)
 			break;
 		usleep(300000);
 	}
+	if (i == 50) {
+		debug_printf(1, "never saw card seq response\n");
+		return -1;
+	}
 	debug_printf(3, "got good seq, reading RSPM...\n");
 	read_from(RSPM);
 	debug_printf(3, "done reading RSPM\n");
+	return 0;
 }
 struct byte_response {
 	u8 response;
@@ -661,14 +670,14 @@ struct wpa_key *make_wpa_key(char *essid, char *pass)
 	return key;
 }
 
-void card_info_cmd(enum card_info_subcommand cmd)
+int card_info_cmd(enum card_info_subcommand cmd)
 {
 	struct card_info_req cir;
 	cir.o = 'o';
 	cir.subcommand = cmd;
 
 	write_struct(REQM, &cir);
-	wait_for_response();
+	return wait_for_response();
 }
 
 u32 fetch_log_length(void)
@@ -694,6 +703,16 @@ void print_card_mac(void)
 	print_mac(mac);
 }
 
+void print_card_firmware_info(void)
+{
+	debug_printf(2, "%s()\n", __func__);
+	card_info_cmd(FIRMWARE_INFO);
+	struct card_firmware_info *info = buf;
+	printf("card firmware (len: %d): '", info->info.length);
+	print_pascal_string(&info->info);
+	printf("'\n");
+}
+
 void print_card_key(void)
 {
 	debug_printf(2, "%s()\n", __func__);
@@ -708,12 +727,12 @@ struct noarg_request {
 	u8 req;
 };
 
-void issue_noarg_command(u8 cmd)
+int issue_noarg_command(u8 cmd)
 {
 	struct noarg_request req;
 	req.req = cmd;
 	write_struct(REQM, &req);
-	wait_for_response();
+	return wait_for_response();
 }
 
 void scan_print_nets(void)
@@ -772,7 +791,7 @@ void copy_wpa_key(struct wpa_key *dst, struct wpa_key *src)
   	memcpy(&dst->key, &src->key, sizeof(*dst));
 }
 
-void network_action(char cmd, char *essid, char *wpa_ascii)
+int network_action(char cmd, char *essid, char *wpa_ascii)
 {
 	struct net_request nr;
 	memset(&nr, 0, sizeof(nr));
@@ -787,7 +806,7 @@ void network_action(char cmd, char *essid, char *wpa_ascii)
 		copy_wpa_key(&nr.key.wpa, wpakey);
 	}
 	write_struct(REQM, &nr);
-	wait_for_response();
+	return wait_for_response();
 }
 
 void add_network(char *essid, char *wpa_ascii)
@@ -876,14 +895,17 @@ struct rest_log_response {
 
 unsigned char *get_log_at_offset(u32 offset)
 {
+	int ret;
 	struct fetch_log_cmd cmd;
 	cmd.m = 'm';
 	cmd.offset = u32_to_be32(offset);
 
 	debug_printf(2, "getting log at offset: %08lx\n", offset);
 	write_struct(REQM, &cmd);
-	wait_for_response();
-	return buf;
+	ret = wait_for_response();
+	if (!ret)
+		return buf;
+	return NULL;
 }
 
 int get_log(void)
@@ -964,6 +986,7 @@ void usage(void)
 	printf("  -s		scan for networks\n");
 	printf("  -c		list configured networks\n");
 	printf("  -b		reboot card\n");
+	printf("  -f            print information about card firmware\n");
 	printf("  -d level	set debugging level (default: 1)\n");
 	printf("  -k		print card unique key\n");
 	printf("  -l		dump card log\n");
@@ -994,7 +1017,7 @@ int main(int argc, char **argv)
 	char *passwd = NULL;
 	char network_action = 0;
         debug_printf(3, "about to parse arguments\n");
-        while ((c = getopt_long_only(argc, argv, "a:bcd:klmp:r:st:",
+        while ((c = getopt_long_only(argc, argv, "a:bcd:kflmp:r:st:",
                         &long_options[0], &option_index)) != -1) {
         	debug_printf(3, "argument: '%c' %d optarg: '%s'\n", c, c, optarg);
 		switch (c) {
@@ -1016,6 +1039,9 @@ int main(int argc, char **argv)
 		case 'd':
 			debug_level = atoi(optarg);
 			fprintf(stderr, "set debug level to: %d\n", debug_level);
+			break;
+		case 'f':
+			print_card_firmware_info();
 			break;
 		case 'k':
 			print_card_key();

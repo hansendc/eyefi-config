@@ -3,8 +3,69 @@
 
 #include <sys/types.h>
 
+#if defined(LITTLE_ENDIAN) && !defined(__LITTLE_ENDIAN)
+#define __LITTLE_ENDIAN LITTLE_ENDIAN
+#endif
+
+#if defined(BIG_ENDIAN) && !defined(__BIG_ENDIAN)
+#define __BIG_ENDIAN BIG_ENDIAN
+#endif
+
+#if !defined(__BIG_ENDIAN) && !defined(__LITTLE_ENDIAN)
 #include <endian.h>
 #include <byteswap.h>
+#endif
+
+extern int eyefi_debug_level;
+
+#ifdef __CHDK__
+
+#define CONFIG_EYEFI_STANDALONE 1
+#define printf(...) do{}while(0)
+#define putchar(...) do{}while(0)
+#define puts(...) do{}while(0)
+#define exit(i)                  return
+#define perror(i)        do{}while(0)
+#define system(i)        do{}while(0)
+#define fd_dont_cache(fd) (0)
+#define assert(x)        do{}while(0)
+#define output_flush()   do{}while(0)
+
+#else
+#define CONFIG_EYEFI_WITH_OS 1
+#include <assert.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <stdarg.h>
+
+#define PATHNAME_MAX 4096
+
+#define output_flush()	fflush(NULL)
+
+#define debug_printf(level, args...) do {      \
+	if ((level) <= eyefi_debug_level)      \
+		fprintf(stderr, ## args);      \
+	} while(0)
+
+#endif
+
+/*
+ * These are defined in both eyefi-unix.c and eyefi-chdk.c
+ */
+extern void open_error(char *file, int err);
+extern int eyefi_printf(const char *fmt, ...);
+
+/*
+ * These have to be created by the unix variants
+ */
+extern int fd_dont_cache(int);
 
 /*
  * Do some kernel-style types to make
@@ -40,15 +101,216 @@ static inline u32 swap_bytes(u32 src)
 }
 
 #ifdef __LITTLE_ENDIAN
-#warning le
 #define le_to_host32(n) (n)
 #define be_to_host32(n) swap_bytes(n)
 #define host_to_be32(n) swap_bytes(n)
 #else  // __BIG_ENDIAN
-#warning be
 #define le_to_host32(n) swap_bytes(n)
 #define be_to_host32(n) (n)
 #define host_to_be32(n) (n)
 #endif
 
+/*
+ * Just a few functions so that I can't easily forget about
+ * endinness.
+ */
+struct __be32 {
+	u32 val;
+} __attribute__((packed));
+typedef struct __be32 be32;
+
+/*
+ * These two obviously need to get fixed for
+ * big endian machines.
+ */
+static inline u32 be32_to_u32(be32 src)
+{
+	return swap_bytes(src.val);
+}
+static inline be32 u32_to_be32(u32 src)
+{
+	be32 ret;
+	ret.val = swap_bytes(src);
+	return ret;
+}
+
+/*
+ * Eye-Fi Card data structures
+ */
+
+struct card_seq_num {
+	u32 seq;
+} __attribute__((packed));
+
+#define EYEFI_BUF_SIZE 16384
+
+/*
+ * Most of the eyefi strings are pascal-style with
+ * a length byte preceeding content.  (Did pascal
+ * have just a byte for length or more??)
+ */
+struct pascal_string {
+	u8 length;
+	u8 value[32];
+} __attribute__((packed));
+
+/*
+ * The 'o' command has several sub-commands:
+ */
+enum card_info_subcommand {
+	MAC_ADDRESS   = 1,
+	FIRMWARE_INFO = 2,
+	CARD_KEY      = 3,
+	API_URL       = 4,
+	UNKNOWN1      = 5, // Chris says these are 
+	UNKNOWN2      = 6, // checksums
+	LOG_LEN	      = 7,
+};
+
+struct card_info_req {
+	u8 o;
+	u8 subcommand;
+} __attribute__((packed));
+
+struct card_info_rsp_key {
+	struct pascal_string key;
+};
+
+struct card_firmware_info {
+	struct pascal_string info;
+};
+
+#define MAC_BYTES 6
+struct mac_address {
+	u8 length;
+	u8 mac[MAC_BYTES];
+} __attribute__((packed));
+
+struct card_info_api_url {
+	struct pascal_string key;
+};
+
+struct card_info_log_len {
+	u8 len;
+	be32 val;
+} __attribute__((packed));
+
+struct byte_response {
+	u8 response;
+};
+
+enum net_type {
+	UNSECURED,
+	WEP,
+	WPA,
+	WPA2
+};
+
+#define ESSID_LEN 32
+struct scanned_net {
+	char essid[ESSID_LEN];
+	signed char strength;
+	u8 type;
+} __attribute__((packed));
+
+struct scanned_net_list {
+	u8 nr;
+	struct scanned_net nets[100];
+} __attribute__((packed));
+
+struct configured_net {
+	char essid[ESSID_LEN];
+} __attribute__((packed));
+
+struct configured_net_list {
+	u8 nr;
+	struct configured_net nets[100];
+} __attribute__((packed));
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+#define WPA_KEY_BYTES 32
+struct wpa_key {
+	u8 key[WPA_KEY_BYTES];
+} __attribute((packed));
+
+#define WEP_KEY_BYTES 32
+struct wep_key {
+	u8 key[WEP_KEY_BYTES];
+} __attribute((packed));
+
+struct network_key {
+	u8 len;
+	union {
+		struct wpa_key wpa;
+		struct wep_key wep;
+	};
+} __attribute((packed));
+
+#define KEY_LEN 32
+struct net_request {
+	char req;
+	u8 essid_len;
+	char essid[ESSID_LEN];
+	struct network_key key;
+} __attribute((packed));
+
+struct noarg_request {
+	u8 req;
+};
+
+/*
+ * Log structures
+ */
+struct fetch_log_cmd {
+	char m;
+	be32 offset;
+} __attribute__((packed));
+
+/*
+ * When you ask for the log at offset 0x0, you
+ * get back 8 bytes of offsets into the rest of
+ * the data
+ */
+struct first_log_response {
+	be32 log_end;
+	be32 log_start;
+	u8 data[EYEFI_BUF_SIZE-8];
+} __attribute__((packed));
+
+struct rest_log_response {
+	u8 data[EYEFI_BUF_SIZE];
+} __attribute__((packed));
+
+/*
+ * Functions that are exported from eyefi-config.c
+ */
+u32 fetch_log_length(void);
+int card_info_cmd(enum card_info_subcommand cmd);
+void *eyefi_response(void);
+struct card_info_rsp_key *fetch_card_key(void);
+struct scanned_net_list *scan_nets(void);
+char *net_type_name(u8 type);
+struct configured_net_list *fetch_configured_nets(void);
+int issue_noarg_command(u8 cmd);
+char *net_test_state_name(u8 state);
+int network_action(char cmd, char *essid, char *wpa_ascii);
+char *locate_eyefi_mount(void);
+int get_log_into(u8 *resbuf);
+void reboot_card(void);
+void init_card(void);
+void add_network(char *essid, char *wpa_ascii);
+void remove_network(char *essid);
+struct card_firmware_info *fetch_card_firmware_info(void);
+/*
+ * Only used by the unix variants
+ */
+enum eyefi_file {
+	REQC,
+	REQM,
+	RSPC,
+	RSPM
+};
+char *eyefi_file_on(enum eyefi_file file, char *mnt);
+int atoh(char c);
 #endif // _EYEFI_CONFIG_H

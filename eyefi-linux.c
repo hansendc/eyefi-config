@@ -120,6 +120,3 @@ char *locate_eyefi_mount(void)
 	exit(1);
 	return NULL;
 }
-
-
-

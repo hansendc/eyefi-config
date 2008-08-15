@@ -16,7 +16,7 @@ int eyefi_printf(const char *fmt, ...)
         int r;
 
         va_start(args, fmt);
-        r = printf(fmt, args);
+        r = vprintf(fmt, args);
         va_end(args);
 
         return r;

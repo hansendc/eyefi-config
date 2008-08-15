@@ -200,10 +200,10 @@ struct byte_response {
 };
 
 enum net_type {
-	UNSECURED,
-	WEP,
-	WPA,
-	WPA2
+	NET_UNSECURED,
+	NET_WEP,
+	NET_WPA,
+	NET_WPA2
 };
 
 #define ESSID_LEN 32
@@ -290,7 +290,7 @@ int card_info_cmd(enum card_info_subcommand cmd);
 void *eyefi_response(void);
 struct card_info_rsp_key *fetch_card_key(void);
 struct scanned_net_list *scan_nets(void);
-char *net_type_name(u8 type);
+const char *net_type_name(u8 type);
 struct configured_net_list *fetch_configured_nets(void);
 int issue_noarg_command(u8 cmd);
 char *net_test_state_name(u8 state);

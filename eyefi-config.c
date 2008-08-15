@@ -10,7 +10,7 @@
 
 #include "eyefi-config.h"
 
-int eyefi_debug_level = 0;
+int eyefi_debug_level = 1;
 
 int eyefi_printf(const char *fmt, ...)
 {
@@ -18,7 +18,7 @@ int eyefi_printf(const char *fmt, ...)
         int r;
 
         va_start(args, fmt);
-        r = printf(fmt, args);
+        r = vprintf(fmt, args);
         va_end(args);
 
         return r;
@@ -40,9 +40,12 @@ char *eyefi_file_on(enum eyefi_file file, char *mnt)
 {
 	char *filename = eyefi_file_name(file);
 	char *full = malloc(PATHNAME_MAX);
+	
+	if (!full)
+		return NULL;
 
 	sprintf(&full[0], "%s/EyeFi/%s", mnt, filename);
-	debug_printf(4, "eyefile nr: %d on '%s' is: '%s'\n", file, mnt, &full[0]);
+	debug_printf(3, "eyefile nr: %d on '%s' is: '%s'\n", file, mnt, &full[0]);
 	return full;
 }
 
@@ -139,10 +142,13 @@ void align_buf(void)
  */
 void zero_card_files(void)
 {
-	//write_to(REQM, eyefi_buf, EYEFI_BUF_SIZE);
-	write_to(REQC, eyefi_buf, EYEFI_BUF_SIZE);
-	write_to(RSPM, eyefi_buf, EYEFI_BUF_SIZE);
-	write_to(RSPC, eyefi_buf, EYEFI_BUF_SIZE);
+	char zbuf[EYEFI_BUF_SIZE];
+
+	memset(&zbuf[0], 0, EYEFI_BUF_SIZE);
+	//write_to(REQM, zbuf, EYEFI_BUF_SIZE);
+	write_to(REQC, zbuf, EYEFI_BUF_SIZE);
+	write_to(RSPM, zbuf, EYEFI_BUF_SIZE);
+	write_to(RSPC, zbuf, EYEFI_BUF_SIZE);
 
 	read_from(REQM);
 	read_from(REQC);
@@ -331,19 +337,21 @@ char *net_test_state_name(u8 state)
 	return net_test_states[state];
 }
 
-char *net_types[] = {
+const char *net_types[] = {
 	"No security",
 	"WEP",
 	"WPA",
 	"unknown1",
 	"WPA2",
 };
+const char net_type_unknown[] = "unknown";
 
-char *net_type_name(u8 type)
+const char *net_type_name(u8 type)
 {
 	int size = ARRAY_SIZE(net_types);
+	debug_printf(3, "%s(%d): '%s' size: %d\n", __func__, type, net_types[type], size);
 	if (type >= size)
-		return "unknown";
+		return net_type_unknown;
 	return net_types[type];
 }
 
@@ -502,7 +510,7 @@ struct card_info_rsp_key *fetch_card_key(void)
 int issue_noarg_command(u8 cmd)
 {
 	struct noarg_request req;
-	printf("%s() cmd: %d\n", __func__, cmd);
+	debug_printf(4, "%s() cmd: %d\n", __func__, cmd);
 	req.req = cmd;
 	write_struct(REQM, &req);
 	return wait_for_response();
@@ -587,16 +595,16 @@ int get_log_at_offset(u32 offset)
 
 void add_log_piece(u8 *log, int log_len, u8 *piece, int piece_pos, int piece_size)
 {
-	debug_printf(0, "%s(%p, %d, %p, %d, %d)\n", __func__, log, log_len, piece, piece_pos, piece_size);
+	debug_printf(2, "%s(%p, %d, %p, %d, %d)\n", __func__, log, log_len, piece, piece_pos, piece_size);
 	if (piece_pos + piece_size > log_len) {
 		int overflow_by = (piece_pos + piece_size) - log_len;
 		int piece_overrun_pos = piece_size - overflow_by;
 		piece_size -= overflow_by;
 		memcpy(&log[0], &piece[piece_overrun_pos], overflow_by);
-		debug_printf(0, "writing %d bytes to logbuf[0] from piece[%d]\n",
+		debug_printf(2, "writing %d bytes to logbuf[0] from piece[%d]\n",
 				overflow_by, piece_overrun_pos);
 	}
-	debug_printf(0, "writing %d bytes to logbuf[%d]\n", piece_size, piece_pos);
+	debug_printf(2, "writing %d bytes to logbuf[%d]\n", piece_size, piece_pos);
 	memcpy(&log[piece_pos], piece, piece_size);
 }
 

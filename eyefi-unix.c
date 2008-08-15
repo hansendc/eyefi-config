@@ -104,11 +104,14 @@ int try_connection_to(char *essid, char *wpa_ascii)
 {
 	int i;
 	int ret = -1;
+	const char *type;
 
-	char *type = net_type_name(WPA);
+       	type = net_type_name(NET_WPA);
 	if (!wpa_ascii)
-		type = net_type_name(UNSECURED);
-	eyefi_printf("trying to connect to %s network: '%s'", type, essid);
+		type = net_type_name(NET_UNSECURED);
+
+	eyefi_printf("trying to connect to network: '%s'", essid);
+	eyefi_printf("of type: '%s'\n", type);
 	if (wpa_ascii)
 	       	eyefi_printf(" with passphrase: '%s'", wpa_ascii);
 	fflush(NULL);
@@ -155,7 +158,7 @@ int try_connection_to(char *essid, char *wpa_ascii)
 int print_log(void)
 {
 	int i;
-	char *resbuf = malloc(EYEFI_BUF_SIZE*4);
+	u8 *resbuf = malloc(EYEFI_BUF_SIZE*4);
 	int total_bytes;
 
 	total_bytes = get_log_into(resbuf);
@@ -228,13 +231,13 @@ void usage(void)
 
 int main(int argc, char **argv)
 {
-	if (argc == 1)
-		usage();
-
-	debug_printf(3, "%s starting...\n", argv[0]);
-	
-	//static int passed_wep = 0;
-	//static int passed_wpa = 0;
+        int option_index;
+        char c;
+	int magic0 = 19790111;
+	char *essid = NULL;
+	char *passwd = NULL;
+	int magic1 = 1111979;
+	char network_action = 0;
 	static int force = 0;
 	static struct option long_options[] = {
 		//{"wep", 'x', &passed_wep, 1},
@@ -243,11 +246,11 @@ int main(int argc, char **argv)
 		{"help", 'h', NULL, 1},
 	};
 
-        int option_index;
-        char c;
-	char *essid = NULL;
-	char *passwd = NULL;
-	char network_action = 0;
+	if (argc == 1)
+		usage();
+
+	debug_printf(3, "%s starting...\n", argv[0]);
+
         debug_printf(3, "about to parse arguments\n");
         while ((c = getopt_long_only(argc, argv, "a:bcd:kflmp:r:st:z",
                         &long_options[0], &option_index)) != -1) {
@@ -259,7 +262,7 @@ int main(int argc, char **argv)
 		case 'a':
 		case 't':
 		case 'r':
-			essid = optarg;
+			essid = strdup(optarg);
 			network_action = c;
 			break;
 		case 'b':
@@ -285,23 +288,24 @@ int main(int argc, char **argv)
 			print_card_mac();
 			break;
 		case 'p':
-			passwd = optarg;
+			passwd = strdup(optarg);
 			break;
 		case 's':
 			scan_print_nets();
 			break;
 		case 'z': {
-				  extern void testit0(void);
+			extern void testit0(void);
 			testit0();
-			  }
 			break;
+		}
 		case 'h':
 		default:
 			usage();
 			break;
 		}
 	}
-	debug_printf(3, "after arguments essid: '%s' passwd: '%s'\n", essid, passwd);
+
+	debug_printf(3, "after arguments1 essid: '%s' passwd: '%s'\n", essid, passwd);
 	if (network_action && essid) {
 		int ret = 0;
 		init_card();
@@ -327,6 +331,9 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
+
+	free(essid);
+	free(passwd);
 	return 0;
 }
 

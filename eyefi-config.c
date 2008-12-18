@@ -45,7 +45,7 @@ char *eyefi_file_on(enum eyefi_file file, char *mnt)
 		return NULL;
 
 	sprintf(&full[0], "%s/EyeFi/%s", mnt, filename);
-	debug_printf(3, "eyefile nr: %d on '%s' is: '%s'\n", file, mnt, &full[0]);
+	debug_printf(4, "eyefile nr: %d on '%s' is: '%s'\n", file, mnt, &full[0]);
 	return full;
 }
 
@@ -193,7 +193,7 @@ void read_from(enum eyefi_file __file)
 
 retry:
 	fd = open(file, O_RDONLY);
-	if (fd < 0) 
+	if (fd < 0)
 		open_error(file, fd);
 	retcntl = fd_dont_cache(fd);
 	if (retcntl < 0) {
@@ -251,7 +251,7 @@ void write_to(enum eyefi_file __file, void *stuff, int len)
 	memset(eyefi_buf, 0, EYEFI_BUF_SIZE);
 	memcpy(eyefi_buf, stuff, len);
 	fd = open(file, O_RDWR|O_CREAT, 0600);
-	if (fd < 0)
+	if (fd < 0 )
 		open_error(file, fd);
 	ret = fd_dont_cache(fd);
 	if (ret < 0)
@@ -291,11 +291,11 @@ u32 eyefi_current_seq(void)
 int wait_for_response(void)
 {
 	int good_rsp = 0;
-	u32 rsp;
+	u32 rsp = 0;
 	int i;
 	debug_printf(3, "waiting for response...\n");
 	inc_seq();
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 50; i++) {
 		struct card_seq_num cardseq = read_seq_from(RSPC);
 		debug_printf(3, "read rsp code: %lx, looking for: %lx raw: %lx\n", rsp, eyefi_current_seq(),
 				cardseq.seq);
@@ -367,8 +367,8 @@ int atoh(char c)
 	char lc = lower(c);
 	if ((c >= '0') && (c <= '9'))
 		return c - '0';
-	else if ((c >= 'a') && (c <= 'z'))
-		return (c - 'a') + 10;
+	else if ((lc >= 'a') && (lc <= 'z'))
+		return (lc - 'a') + 10;
 	debug_printf(5, "non-hex character: '%c'/'%c'\n", c, lc);
 	return -1;
 }
@@ -393,8 +393,10 @@ char *convert_ascii_to_hex(char *ascii, int len)
 		int high = atoh(ascii[i]);
 		int low  = atoh(ascii[i+1]);
 		u8 byte = (high<<4 | low);
-		if (high < 0 || low < 0)
+		if (high < 0 || low < 0) {
+			fprintf(stderr, "unable to parse hex string: '%s'\n", ascii);
 			return NULL;
+		}
 		debug_printf(6, "high: %02x low: %02x, both: %02x\n", high, low, byte);
 		ascii[i/2] = byte;
 	}
@@ -403,23 +405,40 @@ char *convert_ascii_to_hex(char *ascii, int len)
 	return &ascii[0];
 }
 
-struct wpa_key *make_wpa_key(char *essid, char *pass)
+int make_network_key(struct network_key *key, char *essid, char *pass)
 {
-	struct wpa_key *key = malloc(sizeof(*key));
+	char *hex_pass;
+	int pass_len = strlen(pass);
+	memset(key, 0, sizeof(*key));
 
-	if (strlen(pass) == WPA_KEY_BYTES*2) {
-		char *hex_pass;
-		debug_printf(2, "Interpreting password as hex WPA key\n");
-		hex_pass = convert_ascii_to_hex(pass, WPA_KEY_BYTES*2);
-		if (!hex_pass)
-			return NULL;
-		memcpy(&key->key[0], pass, WPA_KEY_BYTES);
-	} else {
-		debug_printf(2, "Interpreting password as ASCII WPA key\n");
-	        pbkdf2_sha1(pass, essid, strlen(essid), 4096,
-			    &key->key[0], WPA_KEY_BYTES);
+	eyefi_printf(" interpreting passphrase as ");
+	switch (pass_len) {
+		case WPA_KEY_BYTES*2:
+			eyefi_printf("hex WPA");
+			hex_pass = convert_ascii_to_hex(pass, pass_len);
+			if (!hex_pass)
+				return -EINVAL;
+			key->len = pass_len/2;
+			memcpy(&key->wpa.key[0], hex_pass, key->len);
+			break;
+		case WEP_KEY_BYTES*2:
+			eyefi_printf("hex WEP");
+			hex_pass = convert_ascii_to_hex(pass, strlen(pass));
+			if (!hex_pass)
+				return -EINVAL;
+			key->len = pass_len/2;
+			memcpy(&key->wep.key[0], hex_pass, key->len);
+			break;
+		default:
+			eyefi_printf("ASCII WPA");
+		        pbkdf2_sha1(pass, essid, strlen(essid), 4096,
+				    &key->wpa.key[0], WPA_KEY_BYTES);
+			key->len = WPA_KEY_BYTES;
+			break;
 	}
-	return key;
+	eyefi_printf(" key (%d bytes)\n", key->len);
+	assert(key->len != 0);
+	return 0;
 }
 
 int card_info_cmd(enum card_info_subcommand cmd)
@@ -458,12 +477,85 @@ struct z {
 	char zeros[100];
 } z;
 
+
+char fwbuf[1<<20];
+char zbuf[1<<20];
 void testit0(void)
 {
 	char c;
 	struct testbuf tb;
 	int i;
+	int fdin;
+	int fdout;
+	
+	card_info_cmd(3);
+	printf("o3 result:\n");
+	dumpbuf(eyefi_buf, 64);
 
+	memset(&zbuf[0], 0, EYEFI_BUF_SIZE);
+	zbuf[0] = 'o';
+	zbuf[1] = 2;
+
+	write_to(REQM, &zbuf[0], 16384);
+	printf("o2 written\n");
+	printf("seq: %x\n", (int)eyefi_seq.seq);
+	inc_seq();
+
+	for (i=0; i < 4; i++) {
+		read_from(RSPC);
+		printf("RSPC %d:\n", i);
+		dumpbuf(eyefi_buf, 64);
+		usleep(20000);
+	}
+
+	printf("RSPM1:\n");
+	read_from(RSPM);
+	dumpbuf(eyefi_buf, 64);
+
+	memset(&zbuf[0], 0, EYEFI_BUF_SIZE);
+	write_to(RSPM, zbuf, EYEFI_BUF_SIZE);
+	write_to(REQM, zbuf, EYEFI_BUF_SIZE);
+
+	fdin = open("/home/dave/projects/eyefi/EYEFIFWU.BIN.2.0001", O_RDONLY);
+	perror("fdin");
+	fdout = open("/media/EYE-FI/EYEFIFWU.BIN", O_WRONLY|O_CREAT);
+	perror("fdout");
+	if (fdin <= 0 || fdout <= 0)
+		exit(1);
+	i = read(fdin, &fwbuf[0], 524288);
+	perror("read");
+	if (i != 524288)
+		exit(2);
+	i = write(fdout, &fwbuf[0], 524288);
+	perror("write");
+	if (i != 524288)
+		exit(3);
+
+	printf("RSPM2:\n");
+	read_from(RSPM);
+	dumpbuf(eyefi_buf, 64);
+
+	reboot_card();
+	printf("after reboot:\n");
+	dumpbuf(eyefi_buf, 64);
+
+	printf("cic3:\n");
+	card_info_cmd(3);
+	dumpbuf(eyefi_buf, 64);
+
+	printf("cic2:\n");
+	card_info_cmd(2);
+	dumpbuf(eyefi_buf, 64);
+
+	memset(&zbuf[0], 0, EYEFI_BUF_SIZE);
+	write_to(RSPM, zbuf, EYEFI_BUF_SIZE);
+	write_to(REQM, zbuf, EYEFI_BUF_SIZE);
+	
+	printf("cic2v2:\n");
+	card_info_cmd(2);
+	dumpbuf(eyefi_buf, 64);
+
+	exit(0);
 	strcpy(tb.name, "www.sr71.net/");
 	tb.l1 = strlen(tb.name);
 	for (i = 0; i < 10; i++) {
@@ -542,17 +634,7 @@ void reboot_card(void)
 	issue_noarg_command('b');
 }
 
-void copy_wep_key(struct wep_key *dst, struct wep_key *src)
-{
-  	memcpy(&dst->key, &src->key, sizeof(*dst));
-}
-
-void copy_wpa_key(struct wpa_key *dst, struct wpa_key *src)
-{
-  	memcpy(&dst->key, &src->key, sizeof(*dst));
-}
-
-int network_action(char cmd, char *essid, char *wpa_ascii)
+int network_action(char cmd, char *essid, char *ascii_password)
 {
 	struct net_request nr;
 	memset(&nr, 0, sizeof(nr));
@@ -560,20 +642,20 @@ int network_action(char cmd, char *essid, char *wpa_ascii)
 	nr.req = cmd;
 	strcpy(&nr.essid[0], essid);
 	nr.essid_len = strlen(essid);
-	struct wpa_key *wpakey;
-	if (wpa_ascii) {
-       		wpakey = make_wpa_key(essid, wpa_ascii);
-		nr.key.len = sizeof(*wpakey);
-		copy_wpa_key(&nr.key.wpa, wpakey);
+
+	if (ascii_password) {
+       		int ret = make_network_key(&nr.key, essid, ascii_password);
+		if (ret)
+			return ret;
 	}
 	write_struct(REQM, &nr);
 	return wait_for_response();
 }
 
-void add_network(char *essid, char *wpa_ascii)
+void add_network(char *essid, char *ascii_password)
 {
 	debug_printf(2, "%s()\n", __func__);
-	network_action('a', essid, wpa_ascii);
+	network_action('a', essid, ascii_password);
 }
 
 void remove_network(char *essid)

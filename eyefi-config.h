@@ -206,6 +206,11 @@ enum net_type {
 	NET_WPA2
 };
 
+enum net_password_type {
+	NET_PASSWORD_ASCII,
+	NET_PASSWORD_RAW, /* raw hex bytes */
+};
+
 #define ESSID_LEN 32
 struct scanned_net {
 	char essid[ESSID_LEN];
@@ -234,7 +239,7 @@ struct wpa_key {
 	u8 key[WPA_KEY_BYTES];
 } __attribute((packed));
 
-#define WEP_KEY_BYTES 32
+#define WEP_KEY_BYTES 13
 struct wep_key {
 	u8 key[WEP_KEY_BYTES];
 } __attribute((packed));
@@ -299,7 +304,7 @@ char *locate_eyefi_mount(void);
 int get_log_into(u8 *resbuf);
 void reboot_card(void);
 void init_card(void);
-void add_network(char *essid, char *wpa_ascii);
+void add_network(char *essid, char *ascii_password);
 void remove_network(char *essid);
 struct card_firmware_info *fetch_card_firmware_info(void);
 /*

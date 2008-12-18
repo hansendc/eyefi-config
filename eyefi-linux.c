@@ -1,6 +1,12 @@
 #include "eyefi-config.h"
 
+// Geez there has to be a better way to do this
+
+#ifdef __i386
 #define O_DIRECT        00040000        /* direct disk access hint */
+#else
+#define O_DIRECT	0200000	/* direct disk access hint - currently ignored */
+#endif
 
 static int atoo(char o)
 {

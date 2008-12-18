@@ -1,4 +1,6 @@
-CC=gcc
+#CC=$(CROSS_COMPILE)gcc -march=armv5te -mtune=xscale
+#-march=armv5te  
+#-marm
 CFLAGS=-g -Wall
 
 OBJS = eyefi-config.o eyefi-unix.o sha1.o md5.o
@@ -13,7 +15,7 @@ ifeq ($(PLATFORM),Darwin)
 endif
 
 eyefi-config: $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $@
+	$(CC) $(CFLAGS) $(OBJS) -static -o $@
 
 clean:
 	rm eyefi-config core  $(OBJS) cscope*

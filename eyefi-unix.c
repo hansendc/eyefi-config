@@ -34,6 +34,7 @@ void print_card_mac(void)
 
 	card_info_cmd(MAC_ADDRESS);
 	mac = eyefi_response();
+	debug_printf(3, "%s() mac->length: %d\n", __func__, mac->length);
 	assert(mac->length == MAC_BYTES);
 	printf("card mac address: ");
 	print_mac(mac);
@@ -100,24 +101,21 @@ void print_configured_nets(void)
 	}
 }
 
-int try_connection_to(char *essid, char *wpa_ascii)
+int try_connection_to(char *essid, char *ascii_password)
 {
 	int i;
 	int ret = -1;
 	const char *type;
 
-       	type = net_type_name(NET_WPA);
-	if (!wpa_ascii)
-		type = net_type_name(NET_UNSECURED);
-
-	eyefi_printf("trying to connect to network: '%s'", essid);
-	eyefi_printf("of type: '%s'\n", type);
-	if (wpa_ascii)
-	       	eyefi_printf(" with passphrase: '%s'", wpa_ascii);
+	eyefi_printf("trying to connect to network: '%s'\n", essid);
+	if (ascii_password)
+	       	eyefi_printf(" with passphrase: '%s'\n", ascii_password);
 	fflush(NULL);
 
 	// test network
-	network_action('t', essid, wpa_ascii);
+	ret = network_action('t', essid, ascii_password);
+	if (ret)
+		return ret;
 	u8 last_rsp = -1;
 
 	char rsp = '\0';
@@ -229,14 +227,13 @@ void usage(void)
 	exit(4);
 }
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
         int option_index;
         char c;
-	int magic0 = 19790111;
+	int cint;
 	char *essid = NULL;
 	char *passwd = NULL;
-	int magic1 = 1111979;
 	char network_action = 0;
 	static int force = 0;
 	static struct option long_options[] = {
@@ -244,6 +241,7 @@ int main(int argc, char **argv)
 		//{"wpa", 'y', &passed_wpa, 1},
 		{"force", 0, &force, 1},
 		{"help", 'h', NULL, 1},
+		{0, 0, 0, 0}
 	};
 
 	if (argc == 1)
@@ -252,8 +250,11 @@ int main(int argc, char **argv)
 	debug_printf(3, "%s starting...\n", argv[0]);
 
         debug_printf(3, "about to parse arguments\n");
-        while ((c = getopt_long_only(argc, argv, "a:bcd:kflmp:r:st:z",
+        debug_printf(4, "argc: %d\n", argc);
+        debug_printf(4, "argv: %p\n", argv);
+        while ((cint = getopt_long_only(argc, argv, "a:bcd:kflmp:r:st:z",
                         &long_options[0], &option_index)) != -1) {
+		c = cint;
         	debug_printf(3, "argument: '%c' %d optarg: '%s'\n", c, c, optarg);
 		switch (c) {
 		case 0:

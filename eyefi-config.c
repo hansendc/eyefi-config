@@ -185,7 +185,7 @@ static char *eyefi_file(enum eyefi_file file)
 
 void read_from(enum eyefi_file __file)
 {
-	int ret, retcntl;
+	int ret;
 	int fd;
 	char *file = eyefi_file(__file);
 	
@@ -195,11 +195,7 @@ retry:
 	fd = open(file, O_RDONLY);
 	if (fd < 0)
 		open_error(file, fd);
-	retcntl = fd_dont_cache(fd);
-	if (retcntl < 0) {
-		perror("bad fcntl");
-		exit(1);
-	}
+	fd_flush(fd);
 	ret = read(fd, eyefi_buf, EYEFI_BUF_SIZE);
 	if (eyefi_debug_level > 3)
 		dumpbuf(eyefi_buf, 128);
@@ -209,7 +205,7 @@ retry:
 		goto retry;
 		exit(1);
 	}
-	debug_printf(4, "read '%s': bytes: %d fcntl: %d\n", file, ret, retcntl);
+	debug_printf(4, "read '%s': bytes: %d\n", file, ret);
 	/*
 	 * There was a time when I was carefully recording how each response
 	 * looked, and I counted the zeros in each response.  I don't care
@@ -253,12 +249,14 @@ void write_to(enum eyefi_file __file, void *stuff, int len)
 	fd = open(file, O_RDWR|O_CREAT, 0600);
 	if (fd < 0 )
 		open_error(file, fd);
-	ret = fd_dont_cache(fd);
-	if (ret < 0)
-		open_error(file, ret);
 	if (eyefi_debug_level > 3)
 		dumpbuf(eyefi_buf, 128);
 	ret = write(fd, eyefi_buf, EYEFI_BUF_SIZE);
+	if (ret < 0)
+		open_error(file, ret);
+	ret = fd_flush(fd);
+	if (ret < 0)
+		open_error(file, ret);
 	close(fd);
 	debug_printf(3, "wrote %d bytes to '%s' (string was %d bytes)\n", ret, file, len);
 	if (ret < 0) {
@@ -522,11 +520,13 @@ void testit0(void)
 	perror("fdout");
 	if (fdin <= 0 || fdout <= 0)
 		exit(1);
+	fd_flush(fdin);
 	i = read(fdin, &fwbuf[0], 524288);
 	perror("read");
 	if (i != 524288)
 		exit(2);
 	i = write(fdout, &fwbuf[0], 524288);
+	fd_flush(fdout);
 	perror("write");
 	if (i != 524288)
 		exit(3);

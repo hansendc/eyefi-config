@@ -27,7 +27,7 @@ extern int eyefi_debug_level;
 #define exit(i)                  return
 #define perror(i)        do{}while(0)
 #define system(i)        do{}while(0)
-#define fd_dont_cache(fd) (0)
+#define fd_flush(fd) (0)
 #define assert(x)        do{}while(0)
 #define output_flush()   do{}while(0)
 
@@ -65,7 +65,7 @@ extern int eyefi_printf(const char *fmt, ...);
 /*
  * These have to be created by the unix variants
  */
-extern int fd_dont_cache(int);
+extern int fd_flush(int);
 
 /*
  * Do some kernel-style types to make

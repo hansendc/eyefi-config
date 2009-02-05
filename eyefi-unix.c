@@ -119,6 +119,7 @@ int try_connection_to(char *essid, char *ascii_password)
 	u8 last_rsp = -1;
 
 	char rsp = '\0';
+	ret = -1;
 	for (i=0; i < 200; i++) {
 		struct byte_response *r;
 		issue_noarg_command('s');

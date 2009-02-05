@@ -1,12 +1,7 @@
 #include "eyefi-config.h"
 
-// Geez there has to be a better way to do this
-
-#ifdef __i386
-#define O_DIRECT        00040000        /* direct disk access hint */
-#else
-#define O_DIRECT	0200000	/* direct disk access hint - currently ignored */
-#endif
+#include <unistd.h>
+#include <fcntl.h>
 
 static int atoo(char o)
 {
@@ -59,9 +54,13 @@ static char *replace_escapes(char *str)
 	return str;
 }
 
-int fd_dont_cache(int fd)
+int fd_flush(int fd)
 {
-	return fcntl(fd, F_SETFL, O_DIRECT);
+	int ret;
+	ret = posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
+	if (ret)
+		perror("posix_fadvise() failed");
+	return ret;
 }
 
 
@@ -116,9 +115,10 @@ char *locate_eyefi_mount(void)
 		return &eyefi_mount[0];
 
 	debug_printf(0, "unable to locate Eye-Fi card\n");
-	if (eyefi_debug_level < 5)
-		debug_printf(0, "please run with '-d5' option and report the output\n");
-	else {
+	if (eyefi_debug_level < 5) {
+		debug_printf(0, "Please check that your card is inserted and mounted\n");
+		debug_printf(0, "If you still have issues, please re-run with the '-d5' option and report the output\n");
+	} else {
 		debug_printf(0, "----------------------------------------------\n");
 		debug_printf(0, "Debug information:\n");
 		system("cat /proc/mounts >&2");

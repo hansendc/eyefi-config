@@ -336,7 +336,7 @@ char *net_test_state_name(u8 state)
 }
 
 const char *net_types[] = {
-	"No security",
+	"none",
 	"WEP",
 	"WPA",
 	"unknown1",

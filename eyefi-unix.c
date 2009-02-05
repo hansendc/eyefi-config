@@ -70,10 +70,12 @@ void scan_print_nets(void)
 	printf("Scanned wireless networks:\n");
 	for (i=0; i < scanned->nr; i++) {
 		struct scanned_net *net = &scanned->nets[i];
-		printf("'%s' type(%d): %s, strength: %d\n", net->essid,
-				net->type,
-				net_type_name(net->type),
+		printf("security: ");
+		if (eyefi_debug_level > 1)
+			printf("(%d)", net->type);
+		printf("%4s, strength: %3d ", net_type_name(net->type),
 				net->strength);
+		printf("essid: '%s'\n", net->essid);
 	}
 }
 

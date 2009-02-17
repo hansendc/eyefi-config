@@ -405,15 +405,17 @@ char *convert_ascii_to_hex(char *ascii, int len)
 
 int make_network_key(struct network_key *key, char *essid, char *pass)
 {
-	char *hex_pass;
+	char tmp[WPA_KEY_BYTES+WEP_KEY_BYTES];
 	int pass_len = strlen(pass);
+	char *hex_pass;
 	memset(key, 0, sizeof(*key));
 
+	strcpy(&tmp[0], pass);
 	eyefi_printf(" interpreting passphrase as ");
 	switch (pass_len) {
 		case WPA_KEY_BYTES*2:
 			eyefi_printf("hex WPA");
-			hex_pass = convert_ascii_to_hex(pass, pass_len);
+			hex_pass = convert_ascii_to_hex(tmp, pass_len);
 			if (!hex_pass)
 				return -EINVAL;
 			key->len = pass_len/2;
@@ -421,7 +423,7 @@ int make_network_key(struct network_key *key, char *essid, char *pass)
 			break;
 		case WEP_KEY_BYTES*2:
 			eyefi_printf("hex WEP");
-			hex_pass = convert_ascii_to_hex(pass, strlen(pass));
+			hex_pass = convert_ascii_to_hex(tmp, strlen(pass));
 			if (!hex_pass)
 				return -EINVAL;
 			key->len = pass_len/2;
@@ -654,7 +656,7 @@ int network_action(char cmd, char *essid, char *ascii_password)
 
 void add_network(char *essid, char *ascii_password)
 {
-	debug_printf(2, "%s()\n", __func__);
+	debug_printf(2, "%s('%s', '%s')\n", __func__, essid, ascii_password);
 	network_action('a', essid, ascii_password);
 }
 

@@ -20,4 +20,9 @@ eyefi-config: $(OBJS)
 clean:
 	rm eyefi-config core  $(OBJS) cscope*
 
-
+eyefi-chdk.o: eyefi-config.h 
+eyefi-config.o: eyefi-config.h
+eyefi-linux.o: eyefi-config.h 
+eyefi-unix.o: eyefi-config.h
+md5.o: eyefi-config.h
+sha1.o: eyefi-config.h

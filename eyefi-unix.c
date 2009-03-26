@@ -107,7 +107,6 @@ int try_connection_to(char *essid, char *ascii_password)
 {
 	int i;
 	int ret = -1;
-	const char *type;
 
 	eyefi_printf("trying to connect to network: '%s'\n", essid);
 	if (ascii_password)

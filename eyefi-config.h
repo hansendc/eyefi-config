@@ -71,7 +71,7 @@ extern int fd_flush(int);
  * Do some kernel-style types to make
  * definitions shorter.
  */
-typedef unsigned long u32;
+typedef unsigned int u32;
 typedef unsigned char u8;
 
 #define os_memset memset

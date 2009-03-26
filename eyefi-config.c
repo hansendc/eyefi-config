@@ -174,7 +174,7 @@ void init_card()
 		eyefi_seq.seq = 0x1234;
 	eyefi_seq.seq++;
 	debug_printf(2, "Done initializing card...\n");
-	debug_printf(2, "seq was: %04lx\n", eyefi_seq.seq);
+	debug_printf(2, "seq was: %04x\n", eyefi_seq.seq);
 }
 
 static char *eyefi_file(enum eyefi_file file)
@@ -295,7 +295,7 @@ int wait_for_response(void)
 	inc_seq();
 	for (i = 0; i < 50; i++) {
 		struct card_seq_num cardseq = read_seq_from(RSPC);
-		debug_printf(3, "read rsp code: %lx, looking for: %lx raw: %lx\n", rsp, eyefi_current_seq(),
+		debug_printf(3, "read rsp code: %x, looking for: %x raw: %x\n", rsp, eyefi_current_seq(),
 				cardseq.seq);
 		rsp = cardseq.seq;
 		if (rsp == eyefi_current_seq()) {
@@ -312,7 +312,7 @@ int wait_for_response(void)
 		debug_printf(1, "never saw card seq response\n");
 		return -1;
 	}
-	debug_printf(3, "got good seq (%ld), reading RSPM...\n", rsp);
+	debug_printf(3, "got good seq (%d), reading RSPM...\n", rsp);
 	read_from(RSPM);
 	debug_printf(3, "done reading RSPM\n");
 	return 0;
@@ -673,7 +673,7 @@ int get_log_at_offset(u32 offset)
 	cmd.m = 'm';
 	cmd.offset = u32_to_be32(offset);
 
-	debug_printf(2, "getting log at offset: %08lx\n", offset);
+	debug_printf(2, "getting log at offset: %08x\n", offset);
 	write_struct(REQM, &cmd);
 	return wait_for_response();
 }
@@ -722,8 +722,8 @@ int get_log_into(u8 *resbuf)
 			struct first_log_response *log = eyefi_buf;
 			log_end = log_size - be32_to_u32(log->log_end);
 			log_start = log_size - be32_to_u32(log->log_start);
-			debug_printf(2, "log end:   0x%04lx\n", log_end);
-			debug_printf(2, "log start: 0x%04lx\n", log_start);
+			debug_printf(2, "log end:   0x%04x\n", log_end);
+			debug_printf(2, "log start: 0x%04x\n", log_start);
 			log_piece = &log->data[0];
 			log_piece_size = ARRAY_SIZE(log->data);
 		} else {

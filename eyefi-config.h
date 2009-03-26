@@ -239,10 +239,12 @@ struct wpa_key {
 	u8 key[WPA_KEY_BYTES];
 } __attribute((packed));
 
+#define WEP_40_KEY_BYTES 5
 #define WEP_KEY_BYTES 13
 struct wep_key {
 	u8 key[WEP_KEY_BYTES];
 } __attribute((packed));
+
 
 struct network_key {
 	u8 len;

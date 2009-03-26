@@ -422,6 +422,7 @@ int make_network_key(struct network_key *key, char *essid, char *pass)
 			memcpy(&key->wpa.key[0], hex_pass, key->len);
 			break;
 		case WEP_KEY_BYTES*2:
+		case WEP_40_KEY_BYTES*2:
 			eyefi_printf("hex WEP");
 			hex_pass = convert_ascii_to_hex(tmp, strlen(pass));
 			if (!hex_pass)

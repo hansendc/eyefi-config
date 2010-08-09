@@ -162,10 +162,26 @@ enum card_info_subcommand {
 	FIRMWARE_INFO = 2,
 	CARD_KEY      = 3,
 	API_URL       = 4,
-	UNKNOWN1      = 5, // Chris says these are 
-	UNKNOWN2      = 6, // checksums
+	UNKNOWN_5     = 5, // Chris says these are 
+	UNKNOWN_6     = 6, // checksums
 	LOG_LEN	      = 7,
+	WLAN_ENABLED  = 10,
+	UNKNOWN_13    = 13, // Returns an ASCII SSID.  Last connected or
+			    // current WiFi network, maybe?
+			    //
+	
+	UNKNOWN_ff    = 0xff, // The D90 does this, and it looks to
+			      // return a 1-byte response length
+			      // followed by a number of 8-byte responses
+			      // But I've only ever seen a single response
+			      // [000]: 01 04 1d 00 18 56 aa d5 42 00 00 00 00 00 00 00
 };
+
+// new code!!: 
+///media/NIKON D90/EYEFI/REQM
+//00000000  4f 0a 01 00 00 00 00 00  00 00 00 00 00 00 00 00  |O...............|
+//00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+// that happens 3 seconds after the card goes into the D90
 
 struct card_info_req {
 	u8 o;
@@ -197,6 +213,11 @@ struct card_info_log_len {
 
 struct byte_response {
 	u8 response;
+};
+
+struct var_byte_response {
+	u8 len;
+	struct byte_response responses[0];
 };
 
 enum net_type {

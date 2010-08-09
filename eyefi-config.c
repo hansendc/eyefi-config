@@ -468,6 +468,26 @@ struct card_firmware_info *fetch_card_firmware_info(void)
 	return NULL;
 }
 
+void wlan_disable(int do_disable)
+{
+	/*
+	 * This is complete voodoo to me.  I've only ever seen
+	 * a single example of this, so it's hard to figure out
+	 * the structure at all.
+	 */
+	char new_cmd[] = {'O', 0x0a, do_disable};
+	write_to(REQM, &new_cmd[0], 3);
+        wait_for_response();
+}
+
+int wlan_enabled(void)
+{
+	struct var_byte_response *rsp;
+        card_info_cmd(WLAN_ENABLED);
+        rsp = eyefi_buf;
+	return rsp->responses[0].response;
+}
+
 struct testbuf {
 	char cmd;
 	u8 l1;
@@ -481,6 +501,7 @@ struct z {
 
 char fwbuf[1<<20];
 char zbuf[1<<20];
+void scan_print_nets(void);
 void testit0(void)
 {
 	char c;
@@ -488,7 +509,42 @@ void testit0(void)
 	int i;
 	int fdin;
 	int fdout;
-	
+
+	printf("WLAN enabled: %d\n", wlan_enabled());
+	wlan_disable(1);
+	printf("WLAN enabled: %d\n", wlan_enabled());
+	wlan_disable(0);
+	printf("WLAN enabled: %d\n", wlan_enabled());
+	exit(0);
+	for (i = 10; i <= 13; i++) {
+		zero_card_files();
+		card_info_cmd(i);
+		printf("UNKNOWN %d result:\n", i);
+		dumpbuf(eyefi_buf, 64);
+		printf("WLAN enabled: %d\n", wlan_enabled());
+		scan_print_nets();
+	}
+	i = 0xff;
+	card_info_cmd(i);
+	printf("UNKNOWN %d result:\n", i);
+	dumpbuf(eyefi_buf, 64);
+	scan_print_nets();
+	printf("WLAN enabled: %d\n", wlan_enabled());
+	//wlan_disable();
+	printf("WLAN enabled: %d\n", wlan_enabled());
+	for (i = 10; i <= 13; i++) {
+		zero_card_files();
+		card_info_cmd(i);
+		printf("UNKNOWN %d result:\n", i);
+		dumpbuf(eyefi_buf, 64);
+		printf("WLAN enabled: %d\n", wlan_enabled());
+	}
+	i = 0xff;
+	card_info_cmd(i);
+	printf("UNKNOWN %d result:\n", i);
+	dumpbuf(eyefi_buf, 64);
+	exit(3);
+
 	card_info_cmd(3);
 	printf("o3 result:\n");
 	dumpbuf(eyefi_buf, 64);
@@ -634,7 +690,9 @@ struct configured_net_list *fetch_configured_nets(void)
 void reboot_card(void)
 {
 	debug_printf(2, "%s()\n", __func__);
+	debug_printf(1, "rebooting card...");
 	issue_noarg_command('b');
+	debug_printf(1, "done\n");
 }
 
 int network_action(char cmd, char *essid, char *ascii_password)

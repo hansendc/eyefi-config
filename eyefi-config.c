@@ -229,6 +229,7 @@ int fake_write = 0;
 void write_to(enum eyefi_file __file, void *stuff, int len)
 {
 	int ret;
+	int wrote;
 	int fd;
 	char *file;
 
@@ -251,14 +252,14 @@ void write_to(enum eyefi_file __file, void *stuff, int len)
 		open_error(file, fd);
 	if (eyefi_debug_level > 3)
 		dumpbuf(eyefi_buf, 128);
-	ret = write(fd, eyefi_buf, EYEFI_BUF_SIZE);
-	if (ret < 0)
-		open_error(file, ret);
+	wrote = write(fd, eyefi_buf, EYEFI_BUF_SIZE);
+	if (wrote < 0)
+		open_error(file, wrote);
 	ret = fd_flush(fd);
 	if (ret < 0)
 		open_error(file, ret);
 	close(fd);
-	debug_printf(3, "wrote %d bytes to '%s' (string was %d bytes)\n", ret, file, len);
+	debug_printf(3, "wrote %d bytes to '%s' (string was %d bytes)\n", wrote, file, len);
 	if (ret < 0) {
 		fprintf(stderr, "error writing to '%s': ", file);
 		perror("");

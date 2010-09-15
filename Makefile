@@ -13,6 +13,9 @@ endif
 ifeq ($(PLATFORM),Darwin)
 	OBJS += eyefi-osx.o
 endif
+ifeq ($(PLATFORM),FreeBSD)
+	OBJS += eyefi-freebsd.o
+endif
 
 eyefi-config: $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -static -o $@

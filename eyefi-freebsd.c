@@ -77,7 +77,6 @@ char *locate_eyefi_mount(void)
 	} else {
 		debug_printf(0, "----------------------------------------------\n");
 		debug_printf(0, "Debug information:\n");
-		system("cat /proc/mounts >&2");
 	}
 	exit(1);
 	return NULL;

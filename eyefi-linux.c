@@ -69,7 +69,7 @@ char *locate_eyefi_mount(void)
 {
 	static char eyefi_mount[PATHNAME_MAX]; // PATH_MAX anyone?
 	char line[LINEBUFSZ];
-	FILE *mounts = fopen("/proc/mounts", "r");
+	FILE *mounts;
 
 	char dev[LINEBUFSZ];
 	char mnt[LINEBUFSZ];
@@ -77,9 +77,11 @@ char *locate_eyefi_mount(void)
 	char opt[LINEBUFSZ];
 	int foo;
 	int bar;
-	
+
 	if (strlen(eyefi_mount))
 		return &eyefi_mount[0];
+
+       	mounts = fopen("/proc/mounts", "r");
 
 	while (fgets(&line[0], 1023, mounts)) {
 		int read;

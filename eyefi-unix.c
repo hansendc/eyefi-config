@@ -158,8 +158,8 @@ int try_connection_to(char *essid, char *ascii_password)
 
 const char *transfer_mode_names[] = {
 	"AUTO",
-	"SELUPLOAD",
 	"SELSHARE",
+	"SELUPLOAD",
 };
 
 int __index_of_str(char *find_me, const char **to_search, int array_size)
@@ -192,27 +192,28 @@ enum transfer_mode str_to_transfer_mode(char *mode_str)
 
 void handle_transfer_mode(char *arg)
 {
+	enum transfer_mode mode;
+	const char *mode_name;
 	enum transfer_mode new_mode;
-	if (!arg) {
-		enum transfer_mode mode = fetch_transfer_mode();
-		const char *mode_name = index_to_str(transfer_mode_names, mode);
-		printf("transfer mode is: %s\n", mode_name);
-		return;
-	}
-	new_mode = str_to_transfer_mode(arg);
-	if (new_mode == -1) {
-		int i;
-		if (strcmp(arg, "help")) {
-			printf("invalid --transfer-mode: %s\n", arg);
+	if (arg) {
+		new_mode = str_to_transfer_mode(arg);
+		if (new_mode == -1) {
+			int i;
+			if (strcmp(arg, "help")) {
+				printf("invalid --transfer-mode: %s\n", arg);
+			}
+			printf("valid --transfer-mode modes are:\n");
+			for (i = 0; i < ARRAY_SIZE(transfer_mode_names); i++) {
+				printf("\t%s\n", transfer_mode_names[i]);
+			}
+			exit(1);
 		}
-		printf("valid --transfer-mode modes are:\n");
-		for (i = 0; i < ARRAY_SIZE(transfer_mode_names); i++) {
-			printf("\t%s\n", transfer_mode_names[i]);
-		}
-		exit(1);
+		set_transfer_mode(new_mode);
 	}
-	set_transfer_mode(new_mode);
-	exit(0);
+
+	mode = fetch_transfer_mode();
+	mode_name = index_to_str(transfer_mode_names, mode);
+	printf("transfer mode is: %s\n", mode_name);
 }
 
 int print_log(void)
@@ -386,8 +387,6 @@ int main(int argc, char *argv[])
 			usage();
 			break;
 		}
-        	printf( "argument: '%c' %d optarg: '%s'\n", c, c, optarg);
-		exit(0);
 	}
 
 	debug_printf(3, "after arguments1 essid: '%s' passwd: '%s'\n", essid, passwd);

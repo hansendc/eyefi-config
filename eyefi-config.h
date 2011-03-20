@@ -168,7 +168,7 @@ enum card_info_subcommand {
 	WLAN_ENABLED  = 10,
 	UNKNOWN_13    = 13, // Returns an ASCII SSID.  Last connected or
 			    // current WiFi network, maybe?
-			    //
+	TRANSFER_MODE = 17,
 	
 	UNKNOWN_ff    = 0xff, // The D90 does this, and it looks to
 			      // return a 1-byte response length
@@ -210,6 +210,13 @@ struct card_info_log_len {
 	u8 len;
 	be32 val;
 } __attribute__((packed));
+
+// These go along with 'o' 17 aka. TRANSFER_MODE
+enum transfer_mode {
+	AUTO_TRANSFER = 0,
+	SELECTIVE_TRANSFER = 1,
+	SELECTIVE_SHARE = 2,
+};
 
 struct byte_response {
 	u8 response;
@@ -317,6 +324,8 @@ u32 fetch_log_length(void);
 int card_info_cmd(enum card_info_subcommand cmd);
 void *eyefi_response(void);
 struct card_info_rsp_key *fetch_card_key(void);
+enum transfer_mode fetch_transfer_mode(void);
+void set_transfer_mode(enum transfer_mode);
 struct scanned_net_list *scan_nets(void);
 const char *net_type_name(u8 type);
 struct configured_net_list *fetch_configured_nets(void);

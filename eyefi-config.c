@@ -495,6 +495,27 @@ int wlan_enabled(void)
 	return rsp->responses[0].response;
 }
 
+enum transfer_mode fetch_transfer_mode(void)
+{
+	struct var_byte_response *rsp;
+        card_info_cmd(TRANSFER_MODE);
+        rsp = eyefi_buf;
+	return rsp->responses[0].response;
+}
+
+void set_transfer_mode(enum transfer_mode transfer_mode)
+{
+	/*
+	 * This is complete voodoo to me.  I've only ever seen
+	 * a single example of this, so it's hard to figure out
+	 * the structure at all.
+	 */
+	char new_cmd[] = {'O', TRANSFER_MODE, 0x1, transfer_mode};
+	write_to(REQM, &new_cmd[0], 4);
+        wait_for_response();
+}
+
+
 struct testbuf {
 	char cmd;
 	u8 l1;
@@ -516,6 +537,15 @@ void testit0(void)
 	int i;
 	int fdin;
 	int fdout;
+
+	printf("transfer_mode: %d\n", fetch_transfer_mode());
+	set_transfer_mode(SELECTIVE_TRANSFER);
+	printf("transfer_mode: %d\n", fetch_transfer_mode());
+	set_transfer_mode(SELECTIVE_SHARE);
+//	printf("transfer_mode: %d\n", fetch_transfer_mode());
+//	set_transfer_mode(AUTO_TRANSFER);
+	printf("transfer_mode: %d\n", fetch_transfer_mode());
+	exit(0);
 
 	printf("WLAN enabled: %d\n", wlan_enabled());
 	wlan_disable(1);

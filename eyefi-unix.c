@@ -156,6 +156,65 @@ int try_connection_to(char *essid, char *ascii_password)
 	return ret;
 }
 
+const char *transfer_mode_names[] = {
+	"AUTO",
+	"SELUPLOAD",
+	"SELSHARE",
+};
+
+int __index_of_str(char *find_me, const char **to_search, int array_size)
+{
+	int i;
+
+	for (i = 0; i < array_size; i++) {
+		if (!strcmp(find_me, to_search[i]))
+			return i;
+	}
+	return -1;
+}
+#define index_of_str(findit, chr_array)	__index_of_str(findit, chr_array, ARRAY_SIZE(chr_array))
+static char unknown_buf[1024];
+const char *__index_to_str(const char **array, int index, int array_size)
+{
+	// This is funky and not thread safe
+	if (index >= array_size) {
+		sprintf(&unknown_buf[0], "UNKNOWN[%d]", index);
+		return &unknown_buf[0];
+	}
+	return array[index];
+}
+#define index_to_str(chr_array, index)	__index_to_str(chr_array, index, ARRAY_SIZE(chr_array))
+
+enum transfer_mode str_to_transfer_mode(char *mode_str)
+{
+	return index_of_str(mode_str, transfer_mode_names);
+}
+
+void handle_transfer_mode(char *arg)
+{
+	enum transfer_mode new_mode;
+	if (!arg) {
+		enum transfer_mode mode = fetch_transfer_mode();
+		const char *mode_name = index_to_str(transfer_mode_names, mode);
+		printf("transfer mode is: %s\n", mode_name);
+		return;
+	}
+	new_mode = str_to_transfer_mode(arg);
+	if (new_mode == -1) {
+		int i;
+		if (strcmp(arg, "help")) {
+			printf("invalid --transfer-mode: %s\n", arg);
+		}
+		printf("valid --transfer-mode modes are:\n");
+		for (i = 0; i < ARRAY_SIZE(transfer_mode_names); i++) {
+			printf("\t%s\n", transfer_mode_names[i]);
+		}
+		exit(1);
+	}
+	set_transfer_mode(new_mode);
+	exit(0);
+}
+
 int print_log(void)
 {
 	int i;
@@ -226,8 +285,21 @@ void usage(void)
 	printf("  -d level	set debugging level (default: 1)\n");
 	printf("  -k		print card unique key\n");
 	printf("  -l		dump card log\n");
-	printf("  -m		print card mac\n");
+	printf("  -m	 	print card mac\n");
+	printf("  --transfer_mode[=mode]  print or change card transfer mode\n");
+	printf("                          or =help to list modes\n");
 	exit(4);
+}
+
+int is_long_opt(int cint, struct option *long_options)
+{
+	struct option *opt = long_options;
+
+	while (opt && opt->name) {
+		if (opt->val == cint)
+			return 1;
+	}
+	return 0;
 }
 
 int main(int argc, char *argv[])
@@ -239,11 +311,13 @@ int main(int argc, char *argv[])
 	char *passwd = NULL;
 	char network_action = 0;
 	static int force = 0;
+	static int transfer_mode = 0;
 	static struct option long_options[] = {
 		//{"wep", 'x', &passed_wep, 1},
 		//{"wpa", 'y', &passed_wpa, 1},
-		{"force", 0, &force, 1},
-		{"help", 'h', NULL, 1},
+		{"force", 	  0, &force, 0},
+		{"help",	  0,   NULL, 'h'},
+		{"transfer-mode", 2, &transfer_mode, 1},
 		{0, 0, 0, 0}
 	};
 
@@ -259,6 +333,11 @@ int main(int argc, char *argv[])
                         &long_options[0], &option_index)) != -1) {
 		c = cint;
         	debug_printf(3, "argument: '%c' %d optarg: '%s'\n", c, c, optarg);
+		if (transfer_mode) {
+			handle_transfer_mode(optarg);
+			transfer_mode = 0;
+			continue;
+		}
 		switch (c) {
 		case 0:
 			// was a long argument
@@ -307,6 +386,8 @@ int main(int argc, char *argv[])
 			usage();
 			break;
 		}
+        	printf( "argument: '%c' %d optarg: '%s'\n", c, c, optarg);
+		exit(0);
 	}
 
 	debug_printf(3, "after arguments1 essid: '%s' passwd: '%s'\n", essid, passwd);

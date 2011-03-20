@@ -380,9 +380,15 @@ int atoh(char c)
  *
  * Destroys the original string.
  */
-char *convert_ascii_to_hex(char *ascii, int len)
+char *convert_ascii_to_hex(char *ascii)
 {
 	int i;
+	char *hex;
+	int len = strlen(ascii);
+
+	// Make it just as long as the ASCII password, even though it
+	// will only end up half as long
+	hex = strdup(ascii);
 	if (len%2) {
 		fprintf(stderr, "%s() must be even number of bytes: %d\n",
 		__func__, len);
@@ -397,39 +403,39 @@ char *convert_ascii_to_hex(char *ascii, int len)
 			return NULL;
 		}
 		debug_printf(6, "high: %02x low: %02x, both: %02x\n", high, low, byte);
-		ascii[i/2] = byte;
+		hex[i/2] = byte;
 	}
 	for (i=len/2; i < len; i++)
-		ascii[i] = '\0';
-	return &ascii[0];
+		hex[i] = '\0';
+	return hex;
 }
 
 int make_network_key(struct network_key *key, char *essid, char *pass)
 {
-	char tmp[WPA_KEY_BYTES+WEP_KEY_BYTES];
-	int pass_len = strlen(pass);
 	char *hex_pass;
+	int pass_len = strlen(pass);
 	memset(key, 0, sizeof(*key));
 
-	strcpy(&tmp[0], pass);
 	eyefi_printf(" interpreting passphrase as ");
 	switch (pass_len) {
 		case WPA_KEY_BYTES*2:
 			eyefi_printf("hex WPA");
-			hex_pass = convert_ascii_to_hex(tmp, pass_len);
+			hex_pass = convert_ascii_to_hex(pass);
 			if (!hex_pass)
 				return -EINVAL;
 			key->len = pass_len/2;
 			memcpy(&key->wpa.key[0], hex_pass, key->len);
+			free(hex_pass);
 			break;
 		case WEP_KEY_BYTES*2:
 		case WEP_40_KEY_BYTES*2:
 			eyefi_printf("hex WEP");
-			hex_pass = convert_ascii_to_hex(tmp, strlen(pass));
+			hex_pass = convert_ascii_to_hex(pass);
 			if (!hex_pass)
 				return -EINVAL;
 			key->len = pass_len/2;
 			memcpy(&key->wep.key[0], hex_pass, key->len);
+			free(hex_pass);
 			break;
 		default:
 			eyefi_printf("ASCII WPA");

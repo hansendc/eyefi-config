@@ -127,6 +127,7 @@ int try_connection_to(char *essid, char *ascii_password)
 		r = eyefi_response();
 		rsp = r->response;
 		char *state = net_test_state_name(rsp);
+		debug_printf(3, "net state: 0x%02x name: '%s'\n", rsp, state);
 		if (rsp == last_rsp) {
 			eyefi_printf(".");
 			fflush(NULL);;

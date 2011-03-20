@@ -216,6 +216,27 @@ void handle_transfer_mode(char *arg)
 	printf("transfer mode is: %s\n", mode_name);
 }
 
+void handle_wifi_onoff(char *arg)
+{
+	char *state;
+	if (arg) {
+		if (!strcmp(arg, "enabled")) {
+			wlan_disable(0);
+		} else if (!strcmp(arg, "disabled")) {
+			wlan_disable(1);
+		} else {
+			printf("unknown wifi state, ignoring: '%s'\n", arg);
+			return;
+		}
+	}
+	if (wlan_enabled()) {
+		state = "enabled";
+	} else {
+		state = "disabled";
+	}
+	printf("Wifi radio status: %s\n", state);
+}
+
 int print_log(void)
 {
 	int i;
@@ -289,6 +310,9 @@ void usage(void)
 	printf("  -m	 	print card mac\n");
 	printf("  --transfer_mode[=mode]  print or change card transfer mode\n");
 	printf("                          or =help to list modes\n");
+	printf("  --wifi-radio  fetch wifi radio state\n");
+	printf("  --wifi-radio=enable enable wifi radio\n");
+	printf("  --wifi-radio=disable disable wifi radio\n");
 	exit(4);
 }
 
@@ -313,12 +337,14 @@ int main(int argc, char *argv[])
 	char network_action = 0;
 	static int force = 0;
 	static int transfer_mode = 0;
+	static int wifi_radio_on = 0;
 	static struct option long_options[] = {
 		//{"wep", 'x', &passed_wep, 1},
 		//{"wpa", 'y', &passed_wpa, 1},
 		{"force", 	  0, &force, 0},
 		{"help",	  0,   NULL, 'h'},
 		{"transfer-mode", 2, &transfer_mode, 1},
+		{"wifi-radio",    2, &wifi_radio_on, 1},
 		{0, 0, 0, 0}
 	};
 
@@ -337,6 +363,11 @@ int main(int argc, char *argv[])
 		if (transfer_mode) {
 			handle_transfer_mode(optarg);
 			transfer_mode = 0;
+			continue;
+		}
+		if (wifi_radio_on) {
+			handle_wifi_onoff(optarg);
+			wifi_radio_on = 0;
 			continue;
 		}
 		switch (c) {

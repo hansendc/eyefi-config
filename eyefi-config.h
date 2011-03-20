@@ -175,6 +175,8 @@ enum card_info_subcommand {
 			      // followed by a number of 8-byte responses
 			      // But I've only ever seen a single response
 			      // [000]: 01 04 1d 00 18 56 aa d5 42 00 00 00 00 00 00 00
+			      // It could be a consolidates info command like "info for
+			      // everything" so the camera makes fewer calls.
 };
 
 // new code!!: 
@@ -324,6 +326,8 @@ u32 fetch_log_length(void);
 int card_info_cmd(enum card_info_subcommand cmd);
 void *eyefi_response(void);
 struct card_info_rsp_key *fetch_card_key(void);
+int wlan_enabled(void);
+void wlan_disable(int do_disable);
 enum transfer_mode fetch_transfer_mode(void);
 void set_transfer_mode(enum transfer_mode);
 struct scanned_net_list *scan_nets(void);

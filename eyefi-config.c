@@ -506,9 +506,11 @@ enum transfer_mode fetch_transfer_mode(void)
 void set_transfer_mode(enum transfer_mode transfer_mode)
 {
 	/*
-	 * This is complete voodoo to me.  I've only ever seen
-	 * a single example of this, so it's hard to figure out
-	 * the structure at all.
+	 * I think these 'O' commands are the "set" version
+	 * of the little 'o' commands which are "gets".
+	 *
+	 * I think the 0x1 here is the length of the next
+	 * argument.
 	 */
 	char new_cmd[] = {'O', TRANSFER_MODE, 0x1, transfer_mode};
 	write_to(REQM, &new_cmd[0], 4);

@@ -538,15 +538,6 @@ void testit0(void)
 	int fdin;
 	int fdout;
 
-	printf("transfer_mode: %d\n", fetch_transfer_mode());
-	set_transfer_mode(SELECTIVE_TRANSFER);
-	printf("transfer_mode: %d\n", fetch_transfer_mode());
-	set_transfer_mode(SELECTIVE_SHARE);
-//	printf("transfer_mode: %d\n", fetch_transfer_mode());
-//	set_transfer_mode(AUTO_TRANSFER);
-	printf("transfer_mode: %d\n", fetch_transfer_mode());
-	exit(0);
-
 	printf("WLAN enabled: %d\n", wlan_enabled());
 	wlan_disable(1);
 	printf("WLAN enabled: %d\n", wlan_enabled());

@@ -308,7 +308,7 @@ void usage(void)
 	printf("  -k		print card unique key\n");
 	printf("  -l		dump card log\n");
 	printf("  -m	 	print card mac\n");
-	printf("  --transfer_mode[=mode]  print or change card transfer mode\n");
+	printf("  --transfer-mode[=mode]  print or change card transfer mode\n");
 	printf("                          or =help to list modes\n");
 	printf("  --wifi-radio  fetch wifi radio state\n");
 	printf("  --wifi-radio=enable enable wifi radio\n");

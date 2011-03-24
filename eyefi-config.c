@@ -518,7 +518,7 @@ int set_endless_percentage(int __percentage)
 	u8 per = __percentage;
 	raw &= ENDLESS_ENABLED_BIT;
 	raw |= per;
-	__set_endless_percentage(raw);
+	return __set_endless_percentage(raw);
 }
 
 int endless_enable(int enable)
@@ -528,7 +528,7 @@ int endless_enable(int enable)
 		raw |= ENDLESS_ENABLED_BIT;
 	else
 		raw &= ~ENDLESS_ENABLED_BIT;
-	__set_endless_percentage(raw);
+	return __set_endless_percentage(raw);
 }
 
 void print_endless(void)

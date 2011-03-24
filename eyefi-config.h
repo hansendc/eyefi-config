@@ -353,6 +353,11 @@ void init_card(void);
 void add_network(char *essid, char *ascii_password);
 void remove_network(char *essid);
 struct card_firmware_info *fetch_card_firmware_info(void);
+
+int set_endless_percentage(int __percentage);
+int endless_enable(int enable);
+void print_endless(void);
+
 /*
  * Only used by the unix variants
  */

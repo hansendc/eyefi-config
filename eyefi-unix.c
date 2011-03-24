@@ -216,6 +216,29 @@ void handle_transfer_mode(char *arg)
 	printf("transfer mode is: %s\n", mode_name);
 }
 
+void handle_endless(char *arg)
+{
+	char *state;
+	if (arg) {
+		int percentage;
+		if (!strcmp(arg, "enable")) {
+			endless_enable(1);
+		} else if (!strcmp(arg, "disable")) {
+			endless_enable(0);
+		} else {
+			percentage = atoi(arg);
+			if ((percentage >= 100) ||
+			    (percentage <= 0)) {
+				printf("invalid enless argument: %s\n", arg);
+				return;
+			}
+			set_endless_percentage(percentage);
+		}
+	}
+	print_endless();
+}
+
+
 void handle_wifi_onoff(char *arg)
 {
 	char *state;
@@ -234,7 +257,7 @@ void handle_wifi_onoff(char *arg)
 	} else {
 		state = "disabled";
 	}
-	printf("Wifi radio status: %s\n", state);
+	printf("wifi radio status: %s\n", state);
 }
 
 int print_log(void)
@@ -313,6 +336,9 @@ void usage(void)
 	printf("  --wifi-radio  fetch wifi radio state\n");
 	printf("  --wifi-radio=enable enable wifi radio\n");
 	printf("  --wifi-radio=disable disable wifi radio\n");
+	printf("  --endless	fetch endless storage information\n");
+	printf("  --endless=<NN> set the endless storage percentage\n");
+	printf("  --endless=[enable/disable]\n");
 	exit(4);
 }
 
@@ -338,6 +364,7 @@ int main(int argc, char *argv[])
 	static int force = 0;
 	static int transfer_mode = 0;
 	static int wifi_radio_on = 0;
+	static int endless = 0;
 	static struct option long_options[] = {
 		//{"wep", 'x', &passed_wep, 1},
 		//{"wpa", 'y', &passed_wpa, 1},
@@ -345,6 +372,7 @@ int main(int argc, char *argv[])
 		{"help",	  0,   NULL, 'h'},
 		{"transfer-mode", 2, &transfer_mode, 1},
 		{"wifi-radio",    2, &wifi_radio_on, 1},
+		{"endless",       2, &endless,       1},
 		{0, 0, 0, 0}
 	};
 
@@ -368,6 +396,11 @@ int main(int argc, char *argv[])
 		if (wifi_radio_on) {
 			handle_wifi_onoff(optarg);
 			wifi_radio_on = 0;
+			continue;
+		}
+		if (endless) {
+			handle_endless(optarg);
+			endless = 0;
 			continue;
 		}
 		switch (c) {

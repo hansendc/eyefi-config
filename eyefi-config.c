@@ -23,7 +23,7 @@ int eyefi_printf(const char *fmt, ...)
 
         return r;
 }
- 
+
 static char *eyefi_file_name(enum eyefi_file file)
 {
 	switch (file) {
@@ -40,7 +40,7 @@ char *eyefi_file_on(enum eyefi_file file, char *mnt)
 {
 	char *filename = eyefi_file_name(file);
 	char *full = malloc(PATHNAME_MAX);
-	
+
 	if (!full)
 		return NULL;
 
@@ -188,7 +188,7 @@ void read_from(enum eyefi_file __file)
 	int ret;
 	int fd;
 	char *file = eyefi_file(__file);
-	
+
 	init_card();
 
 retry:
@@ -266,7 +266,7 @@ void write_to(enum eyefi_file __file, void *stuff, int len)
 		exit(ret);
 	}
 	free(file);
-}	
+}
 
 #define write_struct(file, s) write_to((file), s, sizeof(*(s)))
 
@@ -639,7 +639,7 @@ void testit0(void)
 	memset(&zbuf[0], 0, EYEFI_BUF_SIZE);
 	write_to(RSPM, zbuf, EYEFI_BUF_SIZE);
 	write_to(REQM, zbuf, EYEFI_BUF_SIZE);
-	
+
 	printf("cic2v2:\n");
 	card_info_cmd(2);
 	dumpbuf(eyefi_buf, 64);

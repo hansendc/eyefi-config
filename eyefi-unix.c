@@ -341,7 +341,7 @@ int main(int argc, char *argv[])
 	static struct option long_options[] = {
 		//{"wep", 'x', &passed_wep, 1},
 		//{"wpa", 'y', &passed_wpa, 1},
-		{"force", 	  0, &force, 0},
+		{"force", 	  0, &force, 1},
 		{"help",	  0,   NULL, 'h'},
 		{"transfer-mode", 2, &transfer_mode, 1},
 		{"wifi-radio",    2, &wifi_radio_on, 1},

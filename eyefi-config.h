@@ -154,6 +154,15 @@ struct pascal_string {
 	u8 value[32];
 } __attribute__((packed));
 
+struct byte_response {
+	u8 response;
+};
+
+struct var_byte_response {
+	u8 len;
+	struct byte_response bytes[16383];
+};
+
 /*
  * The 'o' command has several sub-commands:
  */
@@ -169,7 +178,8 @@ enum card_info_subcommand {
 	UNKNOWN_13    = 13, // Returns an ASCII SSID.  Last connected or
 			    // current WiFi network, maybe?
 	TRANSFER_MODE = 17,
-	
+
+	ENDLESS	      = 27,
 	UNKNOWN_ff    = 0xff, // The D90 does this, and it looks to
 			      // return a 1-byte response length
 			      // followed by a number of 8-byte responses
@@ -188,6 +198,14 @@ enum card_info_subcommand {
 struct card_info_req {
 	u8 o;
 	u8 subcommand;
+} __attribute__((packed));
+
+struct card_config_cmd {
+	u8 O;
+	u8 subcommand;
+	union {
+		struct var_byte_response arg;
+	};
 } __attribute__((packed));
 
 struct card_info_rsp_key {
@@ -218,15 +236,6 @@ enum transfer_mode {
 	AUTO_TRANSFER = 0,
 	SELECTIVE_TRANSFER = 1,
 	SELECTIVE_SHARE = 2,
-};
-
-struct byte_response {
-	u8 response;
-};
-
-struct var_byte_response {
-	u8 len;
-	struct byte_response responses[0];
 };
 
 enum net_type {
@@ -324,6 +333,7 @@ struct rest_log_response {
  */
 u32 fetch_log_length(void);
 int card_info_cmd(enum card_info_subcommand cmd);
+int card_config_set(enum card_info_subcommand cmd, struct var_byte_response *args);
 void *eyefi_response(void);
 struct card_info_rsp_key *fetch_card_key(void);
 int wlan_enabled(void);

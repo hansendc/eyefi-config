@@ -475,6 +475,78 @@ struct card_firmware_info *fetch_card_firmware_info(void)
 	return NULL;
 }
 
+int card_config_set(enum card_info_subcommand cmd, struct var_byte_response *args)
+{
+	struct card_config_cmd req;
+	req.O = 'O';
+	req.subcommand = cmd;
+	req.arg.len = args->len;
+	memcpy(&req.arg.bytes[0], &args->bytes[0], args->len);
+
+	write_struct(REQM, &req);
+	return wait_for_response();
+}
+
+void fill_with_int(struct var_byte_response *arg, int fill)
+{
+	// TODO bounds check the int
+	arg->len = 1;
+	arg->bytes[0].response = fill;
+}
+
+#define ENDLESS_ENABLED_BIT	0x80
+int __set_endless_percentage(u8 raw)
+{
+	struct var_byte_response arg;
+	fill_with_int(&arg, raw);
+	return card_config_set(ENDLESS, &arg);
+}
+
+u8 __get_endless_percentage(void)
+{
+	u8 result;
+	struct var_byte_response *rsp;
+	card_info_cmd(ENDLESS);
+	rsp = eyefi_buf;
+	result = rsp->bytes[0].response;
+	return result;
+}
+
+int set_endless_percentage(int __percentage)
+{
+	u8 raw = __get_endless_percentage();
+	u8 per = __percentage;
+	raw &= ENDLESS_ENABLED_BIT;
+	raw |= per;
+	__set_endless_percentage(raw);
+}
+
+int endless_enable(int enable)
+{
+	u8 raw = __get_endless_percentage();
+	if (enable)
+		raw |= ENDLESS_ENABLED_BIT;
+	else
+		raw &= ~ENDLESS_ENABLED_BIT;
+	__set_endless_percentage(raw);
+}
+
+void print_endless(void)
+{
+	u8 raw = __get_endless_percentage();
+	int enabled = (raw & ENDLESS_ENABLED_BIT);
+	int percent = (raw & ~ENDLESS_ENABLED_BIT);
+
+	printf("endless: ");
+	if (enabled)
+		printf("ENABLED");
+	else
+		printf("DISABLED");
+
+	printf(", triggers at %d%% full\n", percent);
+}
+
+
 void wlan_disable(int do_disable)
 {
 	/*
@@ -492,7 +564,7 @@ int wlan_enabled(void)
 	struct var_byte_response *rsp;
         card_info_cmd(WLAN_ENABLED);
         rsp = eyefi_buf;
-	return rsp->responses[0].response;
+	return rsp->bytes[0].response;
 }
 
 enum transfer_mode fetch_transfer_mode(void)
@@ -500,7 +572,7 @@ enum transfer_mode fetch_transfer_mode(void)
 	struct var_byte_response *rsp;
         card_info_cmd(TRANSFER_MODE);
         rsp = eyefi_buf;
-	return rsp->responses[0].response;
+	return rsp->bytes[0].response;
 }
 
 void set_transfer_mode(enum transfer_mode transfer_mode)
@@ -540,11 +612,16 @@ void testit0(void)
 	int fdin;
 	int fdout;
 
-	printf("WLAN enabled: %d\n", wlan_enabled());
-	wlan_disable(1);
-	printf("WLAN enabled: %d\n", wlan_enabled());
-	wlan_disable(0);
-	printf("WLAN enabled: %d\n", wlan_enabled());
+	print_endless();
+	endless_enable(1);
+	print_endless();
+	endless_enable(0);
+	set_endless_percentage(77);
+	print_endless();
+	endless_enable(1);
+	print_endless();
+	endless_enable(0);
+	print_endless();
 	exit(0);
 	for (i = 10; i <= 13; i++) {
 		zero_card_files();

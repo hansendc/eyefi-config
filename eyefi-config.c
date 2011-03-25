@@ -498,7 +498,7 @@ void fill_with_int(struct var_byte_response *arg, int fill)
 {
 	// TODO bounds check the int
 	arg->len = 1;
-	arg->bytes[0].response = fill;
+	arg->bytes[0] = fill;
 }
 
 #define ENDLESS_ENABLED_BIT	0x80
@@ -515,7 +515,7 @@ u8 __get_endless_percentage(void)
 	struct var_byte_response *rsp;
 	card_info_cmd(ENDLESS);
 	rsp = eyefi_buf;
-	result = rsp->bytes[0].response;
+	result = rsp->bytes[0];
 	return result;
 }
 
@@ -553,47 +553,43 @@ void print_endless(void)
 	printf(", triggers at %d%% full\n", percent);
 }
 
+void O_int_set(enum card_info_subcommand subcommand, int set_to)
+{
+	struct card_config_cmd cmd;
+	cmd.O = 'O';
+	cmd.subcommand = subcommand;
+	fill_with_int(&cmd.arg, set_to);
+	write_to(REQM, &cmd, 3);
+	wait_for_response();
+}
+
+int o_int_get(enum card_info_subcommand subcommand)
+{
+	struct var_byte_response *rsp;
+	card_info_cmd(subcommand);
+	rsp = eyefi_buf;
+	return rsp->bytes[0];
+}
+
 
 void wlan_disable(int do_disable)
 {
-	/*
-	 * This is complete voodoo to me.  I've only ever seen
-	 * a single example of this, so it's hard to figure out
-	 * the structure at all.
-	 */
-	char new_cmd[] = {'O', 0x0a, do_disable};
-	write_to(REQM, &new_cmd[0], 3);
-        wait_for_response();
+	O_int_set(WLAN_ENABLED, do_disable);
 }
 
 int wlan_enabled(void)
 {
-	struct var_byte_response *rsp;
-        card_info_cmd(WLAN_ENABLED);
-        rsp = eyefi_buf;
-	return rsp->bytes[0].response;
+	return o_int_get(WLAN_ENABLED);
 }
 
 enum transfer_mode fetch_transfer_mode(void)
 {
-	struct var_byte_response *rsp;
-        card_info_cmd(TRANSFER_MODE);
-        rsp = eyefi_buf;
-	return rsp->bytes[0].response;
+	return o_int_get(TRANSFER_MODE);
 }
 
 void set_transfer_mode(enum transfer_mode transfer_mode)
 {
-	/*
-	 * I think these 'O' commands are the "set" version
-	 * of the little 'o' commands which are "gets".
-	 *
-	 * I think the 0x1 here is the length of the next
-	 * argument.
-	 */
-	char new_cmd[] = {'O', TRANSFER_MODE, 0x1, transfer_mode};
-	write_to(REQM, &new_cmd[0], 4);
-        wait_for_response();
+	O_int_set(TRANSFER_MODE, transfer_mode);
 }
 
 void print_transfer_status(void)

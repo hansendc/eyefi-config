@@ -155,13 +155,9 @@ struct pascal_string {
 	u8 value[32];
 } __attribute__((packed));
 
-struct byte_response {
-	u8 response;
-};
-
 struct var_byte_response {
 	u8 len;
-	struct byte_response bytes[16383];
+	u8 bytes[EYEFI_BUF_SIZE-1];
 };
 
 /*
@@ -177,6 +173,7 @@ enum card_info_subcommand {
 	LOG_LEN	      = 7,
 	WLAN_ENABLED  = 10,
 	UPLOAD_PENDING= 11, // {0x1, STATE}
+	HOTSPOT_ENABLE= 12, // {0x1, STATE}
 	CONNECTED_TO  = 13, // Currently connected Wifi network
 	UPLOAD_STATUS = 14, // current uploading file info
 	UNKNOWN_15    = 15, // always returns {0x01, 0x1d} as far as I've seen

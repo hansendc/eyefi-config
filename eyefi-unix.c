@@ -122,10 +122,9 @@ int try_connection_to(char *essid, char *ascii_password)
 	char rsp = '\0';
 	ret = -1;
 	for (i=0; i < 200; i++) {
-		struct byte_response *r;
+		char *rsp_ptr = eyefi_response();
 		issue_noarg_command('s');
-		r = eyefi_response();
-		rsp = r->response;
+		rsp = *rsp_ptr;
 		char *state = net_test_state_name(rsp);
 		debug_printf(3, "net state: 0x%02x name: '%s'\n", rsp, state);
 		if (rsp == last_rsp) {
@@ -136,7 +135,7 @@ int try_connection_to(char *essid, char *ascii_password)
 				eyefi_printf("\nTesting connecion to '%s' (%d): %s", essid, rsp, state);
 			last_rsp = rsp;
 		}
-		
+
 		if (!strcmp("success", state)) {
 			ret = 0;
 			break;
@@ -218,7 +217,6 @@ void handle_transfer_mode(char *arg)
 
 void handle_endless(char *arg)
 {
-	char *state;
 	if (arg) {
 		int percentage;
 		if (!strcmp(arg, "enable")) {
@@ -243,9 +241,9 @@ void handle_wifi_onoff(char *arg)
 {
 	char *state;
 	if (arg) {
-		if (!strcmp(arg, "enabled")) {
+		if (!strcmp(arg, "enable")) {
 			wlan_disable(0);
-		} else if (!strcmp(arg, "disabled")) {
+		} else if (!strcmp(arg, "disable")) {
 			wlan_disable(1);
 		} else {
 			printf("unknown wifi state, ignoring: '%s'\n", arg);

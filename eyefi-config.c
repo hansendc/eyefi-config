@@ -63,12 +63,13 @@ void *eyefi_response(void)
 	return eyefi_buf;
 }
 
-void dumpbuf(const char *buffer, int bytesToWrite)
+int __dumpbuf(const char *buffer, int bytesToWrite, int per_line)
 {
+    int ret = 0;
     int i;
     static char linebuf[500];
 
-    for (i=0; i < bytesToWrite; i += 16) {
+    for (i=0; i < bytesToWrite; i += per_line) {
         char *tmpbuf = &linebuf[0];
         unsigned long sum = 0;
         int j;
@@ -77,13 +78,13 @@ void dumpbuf(const char *buffer, int bytesToWrite)
 } while (0)
 
         lprintf("[%03d]: ", i);
-        for (j=0; j < 16; j++) {
+        for (j=0; j < per_line; j++) {
                 u8 c = ((unsigned char *)buffer)[i+j];
                 lprintf("%02x ", (unsigned int)c);
                 sum += c;
         }
         lprintf(" |");
-        for (j=0; j < 16; j++) {
+        for (j=0; j < per_line; j++) {
                 u8 c = ((unsigned char *)buffer)[i+j];
                 if (c >= 'a' && c <= 'z')
                         lprintf("%c", c);
@@ -99,10 +100,16 @@ void dumpbuf(const char *buffer, int bytesToWrite)
         lprintf("|\n");
         if (sum == 0)
                 continue;
-        printf("%s", linebuf);
+        ret += printf("%s", linebuf);
         //if (i > 200)
         //      break;
     }
+    return ret;
+}
+
+int dumpbuf(const char *buffer, int bytesToWrite)
+{
+	return __dumpbuf(buffer, bytesToWrite, 16);
 }
 
 void read_from(enum eyefi_file);
@@ -145,15 +152,15 @@ void zero_card_files(void)
 	char zbuf[EYEFI_BUF_SIZE];
 
 	memset(&zbuf[0], 0, EYEFI_BUF_SIZE);
-	//write_to(REQM, zbuf, EYEFI_BUF_SIZE);
+	write_to(REQM, zbuf, EYEFI_BUF_SIZE);
 	write_to(REQC, zbuf, EYEFI_BUF_SIZE);
 	write_to(RSPM, zbuf, EYEFI_BUF_SIZE);
-	write_to(RSPC, zbuf, EYEFI_BUF_SIZE);
+//	write_to(RSPC, zbuf, EYEFI_BUF_SIZE);
 
 	read_from(REQM);
 	read_from(REQC);
 	read_from(RSPM);
-	read_from(RSPC);
+//	read_from(RSPC);
 }
 
 void init_card()
@@ -589,6 +596,48 @@ void set_transfer_mode(enum transfer_mode transfer_mode)
         wait_for_response();
 }
 
+void print_transfer_status(void)
+{
+	int tries = 10;
+	struct upload_status *us;
+	int i;
+	// Give it some sane number so it doesn't
+	// wear out the card
+	for (i = 0; i < 1000; i++) {
+		char *filename;
+		char *dir;
+		int http_len;
+		int http_complete;
+
+		card_info_cmd(UPLOAD_STATUS);
+		//__dumpbuf(eyefi_buf, 128, 48);
+		us = eyefi_buf;
+		if (!us->len) {
+			return;
+			printf("transfer not in progress\n");
+			if (tries-- <= 0)
+				break;
+			sleep(1);
+			continue;
+		}
+		if (us->len <= 8) {
+			printf("%s() result too small: %d, transfer pending???\n",
+					__func__, us->len);
+			return;
+		}
+		http_len = be32_to_u32(us->http_len);
+		http_complete = be32_to_u32(us->http_done);
+		filename = (char *)&us->string[0];
+		dir = filename + strlen(filename) + 1;
+		printf("transferring (%d) %s/%s %d/%d bytes (%4.2f%%))\n",
+				us->len,
+				dir, filename,
+				http_complete, http_len,
+				(100.0 * http_complete) / http_len);
+		break;
+	}
+	zero_card_files();
+}
 
 struct testbuf {
 	char cmd;
@@ -600,6 +649,17 @@ struct z {
 	char zeros[100];
 } z;
 
+int print_connected_to(void)
+{
+	struct pascal_string *essid;
+
+	card_info_cmd(CONNECTED_TO);
+	essid = eyefi_buf;
+	if (!essid->length) {
+		return printf("not connected\n");
+	}
+	return printf("connected to: %s\n", (char *)&essid->value[0]);
+}
 
 char fwbuf[1<<20];
 char zbuf[1<<20];
@@ -611,44 +671,49 @@ void testit0(void)
 	int i;
 	int fdin;
 	int fdout;
+	//char new_cmd[] = {'O', 0x06, 0x0d, 0x0a, 0x31, 0x30, 0x2e, 0x36, 0x2e, 0x30, 0x2e, 0x31, 0x33, 0x37};
 
-	print_endless();
-	endless_enable(1);
-	print_endless();
-	endless_enable(0);
-	set_endless_percentage(77);
-	print_endless();
-	endless_enable(1);
-	print_endless();
-	endless_enable(0);
-	print_endless();
-	exit(0);
-	for (i = 10; i <= 13; i++) {
-		zero_card_files();
-		card_info_cmd(i);
-		printf("UNKNOWN %d result:\n", i);
-		dumpbuf(eyefi_buf, 64);
-		printf("WLAN enabled: %d\n", wlan_enabled());
-		scan_print_nets();
+	//printf("waiting...\n");
+	//print_transfer_status();
+	//exit(0);
+	int doagain = 1;
+	//wlan_disable(0);
+	//int to_test[] = {5, 8, 9, 11, 15, 16, 255, -1};
+	int to_test[] = {0xFF, -1};
+
+	zero_card_files();
+	while (1) {
+	//fprintf(stderr, "testing...\n");
+	for (i = 0; i < 255; i++) {
+		int cmd = to_test[i];
+		if (cmd == -1)
+			break;
+		//zero_card_files();
+		card_info_cmd(cmd);
+		printf("UNKNOWN %3d result: ", cmd);
+		int printed = dumpbuf(eyefi_buf, 256);
+		if (!printed)
+			printf("\n");
+		print_transfer_status();
+		print_connected_to();
 	}
-	i = 0xff;
-	card_info_cmd(i);
-	printf("UNKNOWN %d result:\n", i);
-	dumpbuf(eyefi_buf, 64);
+	}
+	exit(0);
 	scan_print_nets();
 	printf("WLAN enabled: %d\n", wlan_enabled());
 	//wlan_disable();
 	printf("WLAN enabled: %d\n", wlan_enabled());
 	for (i = 10; i <= 13; i++) {
+		int printed;
 		zero_card_files();
 		card_info_cmd(i);
 		printf("UNKNOWN %d result:\n", i);
-		dumpbuf(eyefi_buf, 64);
+		printed = dumpbuf(eyefi_buf, 64);
 		printf("WLAN enabled: %d\n", wlan_enabled());
 	}
 	i = 0xff;
 	card_info_cmd(i);
-	printf("UNKNOWN %d result:\n", i);
+	printf("UNKNOWN %d result:", i);
 	dumpbuf(eyefi_buf, 64);
 	exit(3);
 
@@ -868,6 +933,7 @@ int get_log_into(u8 *resbuf)
 	u32 __log_size = fetch_log_length();
 	int log_pieces = __log_size/EYEFI_BUF_SIZE;
 
+	debug_printf(1, "%s() total_bytes: %d\n", __func__, __log_size);
 	if (__log_size <= 0)
 		return __log_size;
 

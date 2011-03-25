@@ -90,20 +90,20 @@ char *locate_eyefi_mount(void)
 				&foo, &bar);
 		// only look at fat filesystems:
 		if (strcmp(fs, "msdos") && strcmp(fs, "vfat")) {
-			debug_printf(2, "fs at '%s' is not fat, skipping...\n", mnt);
+			debug_printf(4, "fs at '%s' is not fat, skipping...\n", mnt);
 			continue;
 		}
 		// Linux's /proc/mounts has spaces like this \040
 		replace_escapes(&mnt[0]);
 		char *file = eyefi_file_on(REQM, &mnt[0]);
-		debug_printf(2, "looking for EyeFi file here: '%s'\n", file);
+		debug_printf(4, "looking for EyeFi file here: '%s'\n", file);
 
 		struct stat statbuf;
 		int statret;
 		statret = stat(file, &statbuf);
 		free(file);
 		if (statret) {
-			debug_printf(2, "fs at: %s is not an Eye-Fi card, skipping...\n",
+			debug_printf(4, "fs at: %s is not an Eye-Fi card, skipping...\n",
 					eyefi_mount);
 			continue;
 		}

@@ -72,6 +72,7 @@ extern int fd_flush(int);
  * definitions shorter.
  */
 typedef unsigned int u32;
+typedef unsigned short u16;
 typedef unsigned char u8;
 
 #define os_memset memset
@@ -175,8 +176,10 @@ enum card_info_subcommand {
 	UNKNOWN_6     = 6, // checksums
 	LOG_LEN	      = 7,
 	WLAN_ENABLED  = 10,
-	UNKNOWN_13    = 13, // Returns an ASCII SSID.  Last connected or
-			    // current WiFi network, maybe?
+	UPLOAD_PENDING= 11, // {0x1, STATE}
+	CONNECTED_TO  = 13, // Currently connected Wifi network
+	UPLOAD_STATUS = 14, // current uploading file info
+	UNKNOWN_15    = 15, // always returns {0x01, 0x1d} as far as I've seen
 	TRANSFER_MODE = 17,
 
 	ENDLESS	      = 27,
@@ -194,6 +197,14 @@ enum card_info_subcommand {
 //00000000  4f 0a 01 00 00 00 00 00  00 00 00 00 00 00 00 00  |O...............|
 //00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 // that happens 3 seconds after the card goes into the D90
+
+// 
+// 1301001235/0002/REQM: 00000000  4f 0c 01 01 00 00 00 00  00 00 00 00 00 00 00 00  |O...............|
+// looks like it is setting the PC's IP address:
+// 1300998375/0013/REQM: 00000000  4f 06 0d 0a 31 30 2e 38  2e 30 2e 31 32 33 00 00  |O...10.8.0.123..|
+// 1300762293/0016/REQM: 00000000  4f 06 0d 0a 31 30 2e 36  2e 30 2e 31 32 33 00 00  |O...10.6.0.123..|
+// 1300762293/0015/REQM: 00000000  4f 06 0d 0a 31 30 2e 36  2e 30 2e 31 32 33 00 00  |O...10.6.0.123..|
+
 
 struct card_info_req {
 	u8 o;
@@ -327,6 +338,18 @@ struct first_log_response {
 struct rest_log_response {
 	u8 data[EYEFI_BUF_SIZE];
 } __attribute__((packed));
+
+struct upload_status {
+	u8 len;
+	be32 http_len;
+	be32 http_done;
+	// There are two strings in here:
+	// 1. filename on the card
+	// \0
+	// 2. directory on the card where it was found
+	// \0
+	u8 string[0];
+}  __attribute__((packed));
 
 /*
  * Functions that are exported from eyefi-config.c

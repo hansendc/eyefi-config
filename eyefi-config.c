@@ -933,7 +933,7 @@ int get_log_into(u8 *resbuf)
 	u32 __log_size = fetch_log_length();
 	int log_pieces = __log_size/EYEFI_BUF_SIZE;
 
-	debug_printf(1, "%s() total_bytes: %d\n", __func__, __log_size);
+	debug_printf(2, "%s() total_bytes: %d\n", __func__, __log_size);
 	if (__log_size <= 0)
 		return __log_size;
 

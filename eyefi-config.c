@@ -14,14 +14,14 @@ int eyefi_debug_level = 1;
 
 int eyefi_printf(const char *fmt, ...)
 {
-        va_list args;
-        int r;
+	va_list args;
+	int r;
 
-        va_start(args, fmt);
-        r = vprintf(fmt, args);
-        va_end(args);
+	va_start(args, fmt);
+	r = vprintf(fmt, args);
+	va_end(args);
 
-        return r;
+	return r;
 }
 
 static char *eyefi_file_name(enum eyefi_file file)
@@ -65,46 +65,46 @@ void *eyefi_response(void)
 
 int __dumpbuf(const char *buffer, int bytesToWrite, int per_line)
 {
-    int ret = 0;
-    int i;
-    static char linebuf[500];
+	int ret = 0;
+	int i;
+	static char linebuf[500];
 
-    for (i=0; i < bytesToWrite; i += per_line) {
-        char *tmpbuf = &linebuf[0];
-        unsigned long sum = 0;
-        int j;
+	for (i=0; i < bytesToWrite; i += per_line) {
+	char *tmpbuf = &linebuf[0];
+	    unsigned long sum = 0;
+	    int j;
 #define lprintf(args...)        do {            \
-        tmpbuf += sprintf(tmpbuf, ## args);\
+	    tmpbuf += sprintf(tmpbuf, ## args);\
 } while (0)
 
-        lprintf("[%03d]: ", i);
-        for (j=0; j < per_line; j++) {
-                u8 c = ((unsigned char *)buffer)[i+j];
-                lprintf("%02x ", (unsigned int)c);
-                sum += c;
-        }
-        lprintf(" |");
-        for (j=0; j < per_line; j++) {
-                u8 c = ((unsigned char *)buffer)[i+j];
-                if (c >= 'a' && c <= 'z')
-                        lprintf("%c", c);
-                else if (c >= 'A' && c <= 'Z')
-                        lprintf("%c", c);
-                else if (c >= '0' && c <= '9')
-                        lprintf("%c", c);
-                else if (c >= 0x20 && c <= 127)
-                        lprintf("%c", c);
-                else
-                        lprintf(".");
-        }
-        lprintf("|\n");
-        if (sum == 0)
-                continue;
-        ret += printf("%s", linebuf);
-        //if (i > 200)
-        //      break;
-    }
-    return ret;
+	    lprintf("[%03d]: ", i);
+	    for (j=0; j < per_line; j++) {
+	            u8 c = ((unsigned char *)buffer)[i+j];
+	            lprintf("%02x ", (unsigned int)c);
+	            sum += c;
+	    }
+	    lprintf(" |");
+	    for (j=0; j < per_line; j++) {
+	            u8 c = ((unsigned char *)buffer)[i+j];
+	            if (c >= 'a' && c <= 'z')
+	                    lprintf("%c", c);
+	            else if (c >= 'A' && c <= 'Z')
+	                    lprintf("%c", c);
+	            else if (c >= '0' && c <= '9')
+	                    lprintf("%c", c);
+	            else if (c >= 0x20 && c <= 127)
+	                    lprintf("%c", c);
+	            else
+	                    lprintf(".");
+	    }
+	    lprintf("|\n");
+	    if (sum == 0)
+	            continue;
+	    ret += printf("%s", linebuf);
+	    //if (i > 200)
+	    //      break;
+	}
+	return ret;
 }
 
 int dumpbuf(const char *buffer, int bytesToWrite)
@@ -244,7 +244,7 @@ void write_to(enum eyefi_file __file, void *stuff, int len)
 		return;
 
 	init_card();
-       	file = eyefi_file(__file);
+	file = eyefi_file(__file);
 	if (len == -1)
 		len = strlen(stuff);
 
@@ -327,12 +327,12 @@ int wait_for_response(void)
 }
 
 char *net_test_states[] = {
-       "not scanning",
-       "locating network",
-       "verifying network key",
-       "waiting for DHCP",
-       "testing connection to Eye-Fi server",
-       "success",
+	"not scanning",
+	"locating network",
+	"verifying network key",
+	"waiting for DHCP",
+	"testing connection to Eye-Fi server",
+	"success",
 };
 
 char *net_test_state_name(u8 state)
@@ -873,7 +873,7 @@ int network_action(char cmd, char *essid, char *ascii_password)
 	nr.essid_len = strlen(essid);
 
 	if (ascii_password) {
-       		int ret = make_network_key(&nr.key, essid, ascii_password);
+		int ret = make_network_key(&nr.key, essid, ascii_password);
 		if (ret)
 			return ret;
 	}

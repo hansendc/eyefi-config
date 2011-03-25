@@ -91,7 +91,7 @@ void print_configured_nets(void)
 		printf("error issuing print networks command: %d\n", ret);
 		return;
 	}
-       	configured = eyefi_response();
+	configured = eyefi_response();
 	if (configured->nr == 0) {
 		printf("No wireless networks configured on card\n");
 		return;
@@ -110,7 +110,7 @@ int try_connection_to(char *essid, char *ascii_password)
 
 	eyefi_printf("trying to connect to network: '%s'\n", essid);
 	if (ascii_password)
-	       	eyefi_printf(" with passphrase: '%s'\n", ascii_password);
+		eyefi_printf(" with passphrase: '%s'\n", ascii_password);
 	fflush(NULL);
 
 	// test network
@@ -353,8 +353,8 @@ int is_long_opt(int cint, struct option *long_options)
 
 int main(int argc, char *argv[])
 {
-        int option_index;
-        char c;
+	int option_index;
+	char c;
 	int cint;
 	char *essid = NULL;
 	char *passwd = NULL;
@@ -379,13 +379,13 @@ int main(int argc, char *argv[])
 
 	debug_printf(3, "%s starting...\n", argv[0]);
 
-        debug_printf(3, "about to parse arguments\n");
-        debug_printf(4, "argc: %d\n", argc);
-        debug_printf(4, "argv: %p\n", argv);
-        while ((cint = getopt_long_only(argc, argv, "a:bcd:kflmp:r:st:z",
-                        &long_options[0], &option_index)) != -1) {
+	debug_printf(3, "about to parse arguments\n");
+	debug_printf(4, "argc: %d\n", argc);
+	debug_printf(4, "argv: %p\n", argv);
+	while ((cint = getopt_long_only(argc, argv, "a:bcd:kflmp:r:st:z",
+		&long_options[0], &option_index)) != -1) {
 		c = cint;
-        	debug_printf(3, "argument: '%c' %d optarg: '%s'\n", c, c, optarg);
+		debug_printf(3, "argument: '%c' %d optarg: '%s'\n", c, c, optarg);
 		if (transfer_mode) {
 			handle_transfer_mode(optarg);
 			transfer_mode = 0;

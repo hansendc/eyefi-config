@@ -171,7 +171,7 @@ enum card_info_subcommand {
 	UNKNOWN_5     = 5, // Chris says these are 
 	UNKNOWN_6     = 6, // checksums
 	LOG_LEN	      = 7,
-	WLAN_ENABLED  = 10,
+	WLAN_DISABLE  = 10, // 1=disable 0=enable, write is 1 byte, read is var_byte
 	UPLOAD_PENDING= 11, // {0x1, STATE}
 	HOTSPOT_ENABLE= 12, // {0x1, STATE}
 	CONNECTED_TO  = 13, // Currently connected Wifi network
@@ -212,6 +212,7 @@ struct card_config_cmd {
 	u8 O;
 	u8 subcommand;
 	union {
+		u8 u8_args[0];
 		struct var_byte_response arg;
 	};
 } __attribute__((packed));
@@ -338,6 +339,9 @@ struct rest_log_response {
 
 struct upload_status {
 	u8 len;
+	// These are _transfer_ sizes.  There's some padding probably for
+	// wifi metadata or something, so these end up being larger than
+	// the actual on-disk sizes of the jpgs or movies.
 	be32 http_len;
 	be32 http_done;
 	// There are two strings in here:

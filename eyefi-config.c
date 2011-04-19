@@ -204,7 +204,7 @@ retry:
 		open_error(file, fd);
 	fd_flush(fd);
 	ret = read(fd, eyefi_buf, EYEFI_BUF_SIZE);
-	if (eyefi_debug_level > 3)
+	if (eyefi_debug_level >= 3)
 		dumpbuf(eyefi_buf, 128);
 	if (ret < 0) {
 		close(fd);
@@ -248,7 +248,7 @@ void write_to(enum eyefi_file __file, void *stuff, int len)
 	if (len == -1)
 		len = strlen(stuff);
 
-	if (eyefi_debug_level > 3) {
+	if (eyefi_debug_level >= 3) {
 		debug_printf(3, "%s('%s', ..., %d)\n", __func__, file, len);
 		dumpbuf(stuff, len);
 	}
@@ -303,7 +303,7 @@ int wait_for_response(void)
 	inc_seq();
 	for (i = 0; i < 50; i++) {
 		struct card_seq_num cardseq = read_seq_from(RSPC);
-		debug_printf(3, "read rsp code: %x, looking for: %x raw: %x\n", rsp, eyefi_current_seq(),
+		debug_printf(4, "read rsp code: %x, looking for: %x raw: %x\n", rsp, eyefi_current_seq(),
 				cardseq.seq);
 		rsp = cardseq.seq;
 		if (rsp == eyefi_current_seq()) {
@@ -320,9 +320,9 @@ int wait_for_response(void)
 		debug_printf(1, "never saw card seq response\n");
 		return -1;
 	}
-	debug_printf(3, "got good seq (%d), reading RSPM...\n", rsp);
+	debug_printf(4, "got good seq (%d), reading RSPM...\n", rsp);
 	read_from(RSPM);
-	debug_printf(3, "done reading RSPM\n");
+	debug_printf(4, "done reading RSPM\n");
 	return 0;
 }
 
@@ -482,15 +482,28 @@ struct card_firmware_info *fetch_card_firmware_info(void)
 	return NULL;
 }
 
+int var_byte_len(struct var_byte_response *vb)
+{
+	// Make sure to include the length of the length
+	// byte itself!
+	return sizeof(vb->len) + vb->len;
+}
+
+
+#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 int card_config_set(enum card_info_subcommand cmd, struct var_byte_response *args)
 {
+	int len;
 	struct card_config_cmd req;
 	req.O = 'O';
 	req.subcommand = cmd;
 	req.arg.len = args->len;
 	memcpy(&req.arg.bytes[0], &args->bytes[0], args->len);
 
-	write_struct(REQM, &req);
+	// try to write a sane number of bytes
+	len = offsetof(struct card_config_cmd, arg) + var_byte_len(args);
+	debug_printf(2, "%s() writing %d bytes (%ld + %d)\n", __func__, len, offsetof(struct card_config_cmd, arg), var_byte_len(args));
+	write_to(REQM, &req, len);
 	return wait_for_response();
 }
 
@@ -553,17 +566,15 @@ void print_endless(void)
 	printf(", triggers at %d%% full\n", percent);
 }
 
-void O_int_set(enum card_info_subcommand subcommand, int set_to)
+void config_int_set(enum card_info_subcommand subcommand, int set_to)
 {
-	struct card_config_cmd cmd;
-	cmd.O = 'O';
-	cmd.subcommand = subcommand;
-	fill_with_int(&cmd.arg, set_to);
-	write_to(REQM, &cmd, 3);
+	struct var_byte_response args;
+	fill_with_int(&args, set_to);
+	card_config_set(subcommand, &args);
 	wait_for_response();
 }
 
-int o_int_get(enum card_info_subcommand subcommand)
+int config_int_get(enum card_info_subcommand subcommand)
 {
 	struct var_byte_response *rsp;
 	card_info_cmd(subcommand);
@@ -571,25 +582,30 @@ int o_int_get(enum card_info_subcommand subcommand)
 	return rsp->bytes[0];
 }
 
-
 void wlan_disable(int do_disable)
 {
-	O_int_set(WLAN_ENABLED, do_disable);
+	struct card_config_cmd req;
+	req.O = 'O';
+	req.subcommand = WLAN_DISABLE;
+	req.u8_args[0] = do_disable;
+	req.u8_args[1] = do_disable;
+	write_to(REQM, &req, offsetof(struct card_config_cmd, u8_args) + 1);
+	wait_for_response();
 }
 
 int wlan_enabled(void)
 {
-	return o_int_get(WLAN_ENABLED);
+	return config_int_get(WLAN_DISABLE);
 }
 
 enum transfer_mode fetch_transfer_mode(void)
 {
-	return o_int_get(TRANSFER_MODE);
+	return config_int_get(TRANSFER_MODE);
 }
 
 void set_transfer_mode(enum transfer_mode transfer_mode)
 {
-	O_int_set(TRANSFER_MODE, transfer_mode);
+	config_int_set(TRANSFER_MODE, transfer_mode);
 }
 
 void print_transfer_status(void)
@@ -672,12 +688,16 @@ void testit0(void)
 	//printf("waiting...\n");
 	//print_transfer_status();
 	//exit(0);
-	int doagain = 1;
+	//int doagain = 1;
 	//wlan_disable(0);
 	//int to_test[] = {5, 8, 9, 11, 15, 16, 255, -1};
 	int to_test[] = {0xFF, -1};
 
 	zero_card_files();
+	for (i = 0; i < 100; i++) {
+		print_transfer_status();
+	}
+	exit(0);
 	while (1) {
 	//fprintf(stderr, "testing...\n");
 	for (i = 0; i < 255; i++) {

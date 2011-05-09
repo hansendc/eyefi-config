@@ -316,7 +316,7 @@ void open_error(char *file, int ret)
 void usage(void)
 {
 	printf("Usage:\n");
-	printf("  eyefitest [OPTIONS]\n");
+	printf("  eyefi-config [OPTIONS]\n");
 	printf("  -a ESSID	add network (implies test unless --force)\n");
 	printf("  -t ESSID	test network\n");
 	printf("  -p KEY	set WPA key for add/test\n");

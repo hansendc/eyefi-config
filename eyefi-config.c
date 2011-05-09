@@ -153,8 +153,8 @@ void zero_card_files(void)
 	char zbuf[EYEFI_BUF_SIZE];
 
 	memset(&zbuf[0], 0, EYEFI_BUF_SIZE);
-	write_to(REQM, zbuf, EYEFI_BUF_SIZE);
-	write_to(REQC, zbuf, EYEFI_BUF_SIZE);
+//	write_to(REQM, zbuf, EYEFI_BUF_SIZE);
+//	write_to(REQC, zbuf, EYEFI_BUF_SIZE);
 	write_to(RSPM, zbuf, EYEFI_BUF_SIZE);
 //	write_to(RSPC, zbuf, EYEFI_BUF_SIZE);
 
@@ -266,7 +266,7 @@ retry:
 	if (!nr_fresh) {
 		tries++;
 		debug_printf(2, "fd_flush(%d) was unsuccessful(%d), retrying (%d)...\n",
-				fd, nr_fresh_pages, tries);
+				fd, nr_fresh, tries);
 		close(fd);
 		goto retry;
 	}
@@ -749,7 +749,7 @@ void print_direct_status(void)
 	printf("\twill stay on %s after the last item is received\n", secsprint(wait_after_secs));
 }
 
-int disable_direct_mode(void)
+void disable_direct_mode(void)
 {
 	// DIRECT_WAIT_FOR_CONNECTION=0 appears to be the trigger
 	// to keep direct mode on and off.  But, no matter what
@@ -760,7 +760,7 @@ int disable_direct_mode(void)
 	config_int_set(DIRECT_WAIT_AFTER_TRANSFER, 60);
 }
 
-int enable_direct_mode(int wait_for_secs, int wait_after_secs)
+void enable_direct_mode(int wait_for_secs, int wait_after_secs)
 {
 	config_int_set(DIRECT_WAIT_FOR_CONNECTION, wait_for_secs);
 	config_int_set(DIRECT_WAIT_AFTER_TRANSFER, wait_after_secs);

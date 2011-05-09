@@ -178,8 +178,9 @@ enum card_info_subcommand {
 	UPLOAD_STATUS = 14, // current uploading file info
 	UNKNOWN_15    = 15, // always returns {0x01, 0x1d} as far as I've seen
 	TRANSFER_MODE = 17,
-
 	ENDLESS	      = 27,
+	DIRECT_WAIT_FOR_CONNECTION = 0x24, // 0 == "direct mode off"
+	DIRECT_WAIT_AFTER_TRANSFER = 0x25, // set to 60 when direct mode off
 	UNKNOWN_ff    = 0xff, // The D90 does this, and it looks to
 			      // return a 1-byte response length
 			      // followed by a number of 8-byte responses

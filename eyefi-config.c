@@ -9,6 +9,7 @@
  */
 
 #include "eyefi-config.h"
+#include <sys/mman.h>
 
 int eyefi_debug_level = 1;
 
@@ -181,7 +182,7 @@ void init_card()
 		eyefi_seq.seq = 0x1234;
 	eyefi_seq.seq++;
 	debug_printf(2, "Done initializing card...\n");
-	debug_printf(2, "seq was: %04x\n", eyefi_seq.seq);
+	debug_printf(3, "seq was: %04x\n", eyefi_seq.seq);
 }
 
 static char *eyefi_file(enum eyefi_file file)
@@ -190,11 +191,63 @@ static char *eyefi_file(enum eyefi_file file)
 	return eyefi_file_on(file, locate_eyefi_mount());
 }
 
+int majflts(void)
+{
+	static char buf[1000];
+	static char garb[1000];
+	int min_flt;
+	int cmin_flt;
+	int maj_flt;
+	int cmaj_flt;
+	int gi;
+	int fd;
+
+	// touch it beforehand so it doesn't fault
+	memset(buf, 0, 1000);
+	memset(garb, 0, 1000);
+
+	fd = open("/proc/self/stat", O_RDONLY);
+	read(fd, buf, 1000);
+	sscanf(buf, "%d %s %s %d %d %d %d %d %d %d %d %d %d %s",
+		&gi, garb, garb, &gi, &gi, &gi, &gi, &gi, &gi,
+		&min_flt, &cmin_flt, &maj_flt, &cmaj_flt,
+		garb);
+	//printf("%d %d %d %d\n", min_flt, cmin_flt, maj_flt, cmaj_flt);
+	close(fd);
+	return maj_flt+cmaj_flt;
+}
+
+// How many pages just came in from the disk?
+int nr_fresh_pages(int fd, int len)
+{
+	int PAGE_SIZE = getpagesize();
+	int faults_before;
+	int faults_after;
+	char *addr;
+	int tmp;
+	int i;
+
+	addr = mmap(NULL, len, PROT_READ, MAP_FILE|MAP_SHARED, fd, 0);
+	//intf("addr: %p\n", addr);
+	faults_before = majflts();
+	for (i = 0; i < len; i += PAGE_SIZE) {
+		tmp += addr[i];
+	}
+	faults_after = majflts();
+	munmap(addr, len);
+	debug_printf(3, "%s(%d) faults_before: %d faults_after: %d net: %d\n",
+			__func__, fd,
+			faults_before, faults_after, (faults_after - faults_before));
+	return (faults_after - faults_before);
+}
+
 void read_from(enum eyefi_file __file)
 {
+	int tries = 0;
 	int ret;
 	int fd;
 	char *file = eyefi_file(__file);
+	int nr_fresh;
 
 	init_card();
 
@@ -203,9 +256,26 @@ retry:
 	if (fd < 0)
 		open_error(file, fd);
 	fd_flush(fd);
+	// fd_flush() does not appear to be working 100% of the
+	// time.  It is not working on my Thinkpad, but works
+	// fine on the same kernel on the Ideapad.  Bizarre.
+	// This at least works around it by detecting when we
+	// did and did not actually bring in pages from the
+	// disk.
+	nr_fresh = nr_fresh_pages(fd, EYEFI_BUF_SIZE);
+	if (!nr_fresh) {
+		tries++;
+		debug_printf(2, "fd_flush(%d) was unsuccessful(%d), retrying (%d)...\n",
+				fd, nr_fresh_pages, tries);
+		close(fd);
+		goto retry;
+	}
 	ret = read(fd, eyefi_buf, EYEFI_BUF_SIZE);
-	if (eyefi_debug_level >= 3)
+	if ((eyefi_debug_level >= 3) ||
+	    (eyefi_debug_level >= 2 && (__file == RSPM))) {
+		printf("%s:", eyefi_file_name(__file));
 		dumpbuf(eyefi_buf, 128);
+	}
 	if (ret < 0) {
 		close(fd);
 		perror("bad read, retrying...");
@@ -248,17 +318,16 @@ void write_to(enum eyefi_file __file, void *stuff, int len)
 	if (len == -1)
 		len = strlen(stuff);
 
-	if (eyefi_debug_level >= 3) {
-		debug_printf(3, "%s('%s', ..., %d)\n", __func__, file, len);
-		dumpbuf(stuff, len);
-	}
 	memset(eyefi_buf, 0, EYEFI_BUF_SIZE);
 	memcpy(eyefi_buf, stuff, len);
 	fd = open(file, O_RDWR|O_CREAT, 0600);
 	if (fd < 0 )
 		open_error(file, fd);
-	if (eyefi_debug_level > 3)
+	if ((eyefi_debug_level >= 3) ||
+	    (eyefi_debug_level >= 2 && (__file == REQM))) {
+		printf("%s:", eyefi_file_name(__file));
 		dumpbuf(eyefi_buf, 128);
+	}
 	wrote = write(fd, eyefi_buf, EYEFI_BUF_SIZE);
 	if (wrote < 0)
 		open_error(file, wrote);
@@ -579,7 +648,7 @@ int config_int_get(enum card_info_subcommand subcommand)
 	struct var_byte_response *rsp;
 	card_info_cmd(subcommand);
 	rsp = eyefi_buf;
-	return rsp->bytes[0];
+	return (rsp->bytes[0] & 0xff);
 }
 
 void wlan_disable(int do_disable)
@@ -651,6 +720,63 @@ void print_transfer_status(void)
 	zero_card_files();
 }
 
+#define DIRECT_WAIT_FOREVER ((u8)0xff)
+
+/* obviously not thread safe with a static buffer */
+char *secsprint(int secs)
+{
+	static char buffer[] = "indefinitely";
+	if (secs == DIRECT_WAIT_FOREVER)
+		sprintf(buffer, "indefinitely");
+	else
+		sprintf(buffer, "%d seconds", secs);
+	return buffer;
+}
+
+void print_direct_status(void)
+{
+	int wait_for_secs   = config_int_get(DIRECT_WAIT_FOR_CONNECTION);
+	int wait_after_secs = config_int_get(DIRECT_WAIT_AFTER_TRANSFER);
+
+	printf("Direct mode is: ");
+	if (!wait_for_secs) {
+		printf("disabled\n");
+		return;
+	}
+	printf("enabled\n");
+	printf("The Direct Mode network will:\n");
+	printf("\twait for %s for a device to connect\n", secsprint(wait_for_secs));
+	printf("\twill stay on %s after the last item is received\n", secsprint(wait_after_secs));
+}
+
+int disable_direct_mode(void)
+{
+	// DIRECT_WAIT_FOR_CONNECTION=0 appears to be the trigger
+	// to keep direct mode on and off.  But, no matter what
+	// DIRECT_WAIT_AFTER_TRANSFER was set to before the mode
+	// is disabled, the official software seems to set it to
+	// 60 seconds during a disable operation
+	config_int_set(DIRECT_WAIT_FOR_CONNECTION,  0);
+	config_int_set(DIRECT_WAIT_AFTER_TRANSFER, 60);
+}
+
+int enable_direct_mode(int wait_for_secs, int wait_after_secs)
+{
+	config_int_set(DIRECT_WAIT_FOR_CONNECTION, wait_for_secs);
+	config_int_set(DIRECT_WAIT_AFTER_TRANSFER, wait_after_secs);
+	print_direct_status();
+}
+
+int start_direct(void)
+{
+	int ret;
+	debug_printf(2, "%s()\n", __func__);
+	ret = issue_noarg_command('S');
+	printf("AP started (%d)\n", ret);
+	return ret;
+}
+
+
 struct testbuf {
 	char cmd;
 	u8 l1;
@@ -683,6 +809,12 @@ void testit0(void)
 	int i;
 	int fdin;
 	int fdout;
+
+	start_direct();
+	print_direct_status();
+	//disable_direct_mode();
+	//print_direct_status();
+	exit(0);
 	//char new_cmd[] = {'O', 0x06, 0x0d, 0x0a, 0x31, 0x30, 0x2e, 0x36, 0x2e, 0x30, 0x2e, 0x31, 0x33, 0x37};
 
 	//printf("waiting...\n");

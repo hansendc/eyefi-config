@@ -57,6 +57,8 @@ static char *replace_escapes(char *str)
 int fd_flush(int fd)
 {
 	int ret;
+	fsync(fd);
+	fdatasync(fd);
 	ret = posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
 	if (ret)
 		perror("posix_fadvise() failed");

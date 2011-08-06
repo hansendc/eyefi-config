@@ -77,6 +77,7 @@ char *locate_eyefi_mount(void)
 	char mnt[LINEBUFSZ];
 	char fs[LINEBUFSZ];
 	char opt[LINEBUFSZ];
+	int fs_nr = -1;
 	int foo;
 	int bar;
 
@@ -87,12 +88,14 @@ char *locate_eyefi_mount(void)
 
 	while (fgets(&line[0], 1023, mounts)) {
 		int read;
+		fs_nr++;
 		read = sscanf(&line[0], "%s %s %s %s %d %d",
 				&dev[0], &mnt[0], &fs[0], &opt[0],
 				&foo, &bar);
 		// only look at fat filesystems:
 		if (strcmp(fs, "msdos") && strcmp(fs, "vfat")) {
-			debug_printf(4, "fs at '%s' is not fat, skipping...\n", mnt);
+			debug_printf(4, "fs[%d] at '%s' is not fat, skipping...\n",
+					fs_nr, mnt);
 			continue;
 		}
 		// Linux's /proc/mounts has spaces like this \040
@@ -105,8 +108,9 @@ char *locate_eyefi_mount(void)
 		statret = stat(file, &statbuf);
 		free(file);
 		if (statret) {
-			debug_printf(4, "fs at: %s is not an Eye-Fi card, skipping...\n",
-					eyefi_mount);
+			debug_printf(3, "fs[%d] at: %s is not an Eye-Fi card, skipping...\n",
+					fs_nr, &mnt[0]);
+			debug_printf(4, "statret: %d\n", statret);
 			continue;
 		}
 		strcpy(&eyefi_mount[0], &mnt[0]);

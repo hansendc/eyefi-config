@@ -130,3 +130,12 @@ char *locate_eyefi_mount(void)
 	exit(1);
 	return NULL;
 }
+
+void eject_card(void)
+{
+	char cmd[PATHNAME_MAX];
+	sprintf(cmd, "umount '%s'", locate_eyefi_mount());
+	debug_printf("ejecting card: '%s'\n", cmd);
+	system(cmd);
+	exit(0);
+}

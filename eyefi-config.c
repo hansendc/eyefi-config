@@ -746,7 +746,15 @@ void print_direct_status(void)
 	printf("enabled\n");
 	printf("The Direct Mode network will:\n");
 	printf("\twait for %s for a device to connect\n", secsprint(wait_for_secs));
-	printf("\twill stay on %s after the last item is received\n", secsprint(wait_after_secs));
+	printf("\tstay on %s after the last item is received\n", secsprint(wait_after_secs));
+}
+
+int direct_mode_enabled(void)
+{
+	int wait_for_secs = config_int_get(DIRECT_WAIT_FOR_CONNECTION);
+	if (wait_for_secs > 0)
+		return 1;
+	return 0;
 }
 
 void disable_direct_mode(void)
@@ -770,6 +778,10 @@ void enable_direct_mode(int wait_for_secs, int wait_after_secs)
 int start_direct(void)
 {
 	int ret;
+	if (!direct_mode_enabled()) {
+		printf("Direct mode disabled, unable to start access point.\n");
+		return -EINVAL;
+	}
 	debug_printf(2, "%s()\n", __func__);
 	ret = issue_noarg_command('S');
 	printf("AP started (%d)\n", ret);
@@ -810,10 +822,9 @@ void testit0(void)
 	int fdin;
 	int fdout;
 
-	start_direct();
+	//start_direct();
 	print_direct_status();
-	//disable_direct_mode();
-	//print_direct_status();
+	enable_direct_mode(60, 120);
 	exit(0);
 	//char new_cmd[] = {'O', 0x06, 0x0d, 0x0a, 0x31, 0x30, 0x2e, 0x36, 0x2e, 0x30, 0x2e, 0x31, 0x33, 0x37};
 

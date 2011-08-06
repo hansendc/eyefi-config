@@ -372,6 +372,7 @@ int issue_noarg_command(u8 cmd);
 char *net_test_state_name(u8 state);
 int network_action(char cmd, char *essid, char *wpa_ascii);
 char *locate_eyefi_mount(void);
+void eject_card(void);
 int get_log_into(u8 *resbuf);
 void reboot_card(void);
 void init_card(void);

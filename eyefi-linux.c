@@ -65,6 +65,53 @@ int fd_flush(int fd)
 	return ret;
 }
 
+// Ubuntu (at least) also uses this as a UUID, although it
+// is not very unique among Eye-Fi cards, obviously.
+#define EYEFI_VOLUME_ID "AA52-6922";
+static char UDEV_BY_UUID_PATH[PATHNAME_MAX] = "/dev/disk/by-uuid/" EYEFI_VOLUME_ID;
+
+// Note: this modifies the original string
+char *basename(char *filename)
+{
+	char *place = filename + strlen(filename) - 1;
+
+	// strip trailing slashes like the basename command
+	while (*place == '/') {
+		*place = '\0';
+		place--;
+	}
+	while (place >= filename) {
+		if (*place == '/')
+			return place+1;
+		place--;
+	}
+	return filename;
+}
+
+// This is a little backards.  To see if this is an Eye-Fi card,
+// we look at a known place where we expect udev to put a symlink
+// to the device file: UDEV_BY_UUID_PATH.  We then see whether
+// that symlink matches the /dev/$foo from /proc/mounts
+int dev_has_eyefi_vol_id(char *dev)
+{
+	char link_contents[PATHNAME_MAX];
+	char *link_dev_name;
+	ssize_t ret;
+
+	ret = readlink(UDEV_BY_UUID_PATH, &link_contents[0], PATHNAME_MAX);
+	debug_printf(1, "read %ld bytes of link data from '%s': '%s'\n",
+			ret, UDEV_BY_UUID_PATH, link_contents);
+	if (ret < 0)
+		return ret;
+
+	link_dev_name = basename(&link_contents[0]);
+	dev = basename(dev);
+	debug_printf(1, "basename('%s'): '%s'\n", link_contents, link_dev_name);
+	if (strcmp(dev, link_dev_name))
+		return -ENOENT;
+	return 0;
+}
+
 int fs_is(char *fs, char *fs_name)
 {
 	return (strcmp(fs, fs_name) == 0);
@@ -98,6 +145,9 @@ static char *check_mount_line(int line_nr, char *line)
 	int statret;
 	statret = stat(file, &statbuf);
 	free(file);
+	//if (statret == -ENODEV) {
+	//	dev_has_eyefi_vol_id(&dev[0]);
+	//}
 	if (statret) {
 		debug_printf(3, "fs[%d] at: %s is not an Eye-Fi card, skipping...\n",
 				line_nr, &mnt[0]);

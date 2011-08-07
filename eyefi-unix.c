@@ -416,6 +416,7 @@ int main(int argc, char *argv[])
 	static int wifi_radio_on = 0;
 	static int endless = 0;
 	static int eject = 0;
+	static int debug_level_opt = 0;
 	static struct option long_options[] = {
 		{"force", 	  0, &force, 1},
 		{"help",	  0,   NULL, 'h'},
@@ -423,18 +424,34 @@ int main(int argc, char *argv[])
 		{"wifi-radio",    2, &wifi_radio_on, 1},
 		{"endless",       2, &endless,       1},
 		{"eject",	  2, &eject,	     1},
+		{"debug",	  2, &debug_level_opt, 'd'},
 		{0, 0, 0, 0}
 	};
 
 	if (argc == 1)
 		usage();
 
+	char optarg_shorts[] = "a:bcd:kflmp:r:st:z";
+	while ((cint = getopt_long_only(argc, argv, optarg_shorts,
+		&long_options[0], &option_index)) != -1) {
+		c = cint;
+		// Process the debug option first and out-of-order
+		if ((c == 'd') || (debug_level_opt != 0)) {
+			fprintf(stderr, "set debug level to: %d\n", eyefi_debug_level);
+			eyefi_debug_level = atoi(optarg);
+			debug_level_opt = 0;
+		}
+	}
+	// Internal getopt() variable, needs to be reset
+	// to force it to restart the arg scan:
+	optind = 0;
+
 	debug_printf(3, "%s starting...\n", argv[0]);
 
 	debug_printf(3, "about to parse arguments\n");
 	debug_printf(4, "argc: %d\n", argc);
 	debug_printf(4, "argv: %p\n", argv);
-	while ((cint = getopt_long_only(argc, argv, "a:bcd:kflmp:r:st:z",
+	while ((cint = getopt_long_only(argc, argv, optarg_shorts,
 		&long_options[0], &option_index)) != -1) {
 		c = cint;
 		debug_printf(3, "argument: '%c' %d optarg: '%s'\n", c, c, optarg);
@@ -474,8 +491,7 @@ int main(int argc, char *argv[])
 			print_configured_nets();
 			break;
 		case 'd':
-			eyefi_debug_level = atoi(optarg);
-			fprintf(stderr, "set debug level to: %d\n", eyefi_debug_level);
+			// We handled this above
 			break;
 		case 'f':
 			print_card_firmware_info();

@@ -99,22 +99,75 @@ int dev_has_eyefi_vol_id(char *dev)
 	ssize_t ret;
 
 	ret = readlink(UDEV_BY_UUID_PATH, &link_contents[0], PATHNAME_MAX);
-	debug_printf(1, "read %ld bytes of link data from '%s': '%s'\n",
+	debug_printf(2, "read %ld bytes of link data from '%s': '%s'\n",
 			ret, UDEV_BY_UUID_PATH, link_contents);
 	if (ret < 0)
-		return ret;
+		return 0;
 
 	link_dev_name = basename(&link_contents[0]);
 	dev = basename(dev);
-	debug_printf(1, "basename('%s'): '%s'\n", link_contents, link_dev_name);
+	debug_printf(2, "basename('%s'): '%s'\n", link_contents, link_dev_name);
 	if (strcmp(dev, link_dev_name))
-		return -ENOENT;
-	return 0;
+		return 0;
+	return 1;
 }
 
 int fs_is(char *fs, char *fs_name)
 {
 	return (strcmp(fs, fs_name) == 0);
+}
+
+int zero_file(enum eyefi_file file, char *mnt)
+{
+	char *fname;
+	char *zerobuf[EYEFI_BUF_SIZE];
+	int fd;
+	int ret;
+	
+	memset(&zerobuf[0], 0, EYEFI_BUF_SIZE);
+	fname = eyefi_file_on(file, mnt);
+	debug_printf(1, "creating control file: '%s'\n", fname);
+	fd = open(fname, O_WRONLY|O_CREAT);
+	ret = fd;
+	if (ret < 0)
+		goto out;
+	ret = write(fd, &zerobuf[0], EYEFI_BUF_SIZE);
+	if (ret < 0)
+		goto out;
+	ret = 0;
+	fsync(fd);
+	close(fd);
+out:
+	free(fname);
+	if (ret)
+		return errno;
+	return 0;
+}
+
+int create_control_files(char *mnt)
+{
+	char *control_dir = eyefi_file_on(RDIR, mnt);
+	int ret = 0;
+	enum eyefi_file file;
+
+	ret = mkdir(control_dir, 0644);
+	debug_printf(1, "making control directory: '%s', errno: %d\n", control_dir, errno);
+	free(control_dir);
+	if ((ret != 0) && (errno != EEXIST)) {
+		perror("unable to create Eye-Fi control directory");
+		return errno;
+	}
+	for (file = REQC; file <= RSPM; file++) {
+		ret = zero_file(file, mnt);
+		debug_printf(2, "trying to create control file: '%s', ret: %d\n",
+				eyefi_file_name(file), ret);
+		if (ret) {
+			perror("unable to create control file");
+			goto out;
+		}
+	}
+out:
+	return ret;
 }
 
 #define LINEBUFSZ 1024
@@ -145,13 +198,18 @@ static char *check_mount_line(int line_nr, char *line)
 	int statret;
 	statret = stat(file, &statbuf);
 	free(file);
-	//if (statret == -ENODEV) {
-	//	dev_has_eyefi_vol_id(&dev[0]);
-	//}
+	if ((errno == ENOENT) && dev_has_eyefi_vol_id(&dev[0])) {
+		debug_printf(1, "found mount  '%s' that looks like Eye-Fi, "
+				"but has no control files\n", mnt);
+		int control_creation = create_control_files(&mnt[0]);
+		if (control_creation != 0)
+			return NULL;
+		statret = stat(file, &statbuf);
+	}
 	if (statret) {
 		debug_printf(3, "fs[%d] at: %s is not an Eye-Fi card, skipping...\n",
 				line_nr, &mnt[0]);
-		debug_printf(4, "statret: %d\n", statret);
+		debug_printf(4, "statret: %d/%d\n", statret, errno);
 		return NULL;
 	}
 	return strdup(&mnt[0]);

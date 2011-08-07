@@ -25,13 +25,14 @@ int eyefi_printf(const char *fmt, ...)
 	return r;
 }
 
-static char *eyefi_file_name(enum eyefi_file file)
+char *eyefi_file_name(enum eyefi_file file)
 {
 	switch (file) {
 	case REQC: return "reqc";
 	case REQM: return "reqm";
 	case RSPC: return "rspc";
 	case RSPM: return "rspm";
+	case RDIR: return "";
 	}
 
 	return NULL;

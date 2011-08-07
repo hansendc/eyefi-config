@@ -388,11 +388,13 @@ void print_endless(void);
  * Only used by the unix variants
  */
 enum eyefi_file {
+	RDIR = 0,
 	REQC,
 	REQM,
 	RSPC,
 	RSPM
 };
 char *eyefi_file_on(enum eyefi_file file, char *mnt);
+char *eyefi_file_name(enum eyefi_file file);
 int atoh(char c);
 #endif // _EYEFI_CONFIG_H

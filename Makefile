@@ -18,7 +18,7 @@ ifeq ($(PLATFORM),FreeBSD)
 endif
 
 eyefi-config: $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -static -o $@
+	$(CC) $(CFLAGS) $(OBJS) -o $@
 
 clean:
 	rm eyefi-config core  $(OBJS) cscope*

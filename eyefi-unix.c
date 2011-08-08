@@ -267,6 +267,7 @@ int print_log(void)
 	total_bytes = get_log_into(resbuf);
 	if (total_bytes < 0) {
 		debug_printf(1, "%s() error: %d\n", __func__, total_bytes);
+		free(resbuf);
 		return total_bytes;
 	}
 	// The last byte *should* be a null, and the 
@@ -297,6 +298,7 @@ int print_log(void)
 		}
 	}
 	*/
+	free(resbuf);
 	return 0;
 }
 

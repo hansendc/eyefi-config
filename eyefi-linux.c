@@ -99,14 +99,14 @@ int dev_has_eyefi_vol_id(char *dev)
 	ssize_t ret;
 
 	ret = readlink(UDEV_BY_UUID_PATH, &link_contents[0], PATHNAME_MAX);
-	debug_printf(2, "read %ld bytes of link data from '%s': '%s'\n",
+	debug_printf(3, "read %ld bytes of link data from '%s': '%s'\n",
 			ret, UDEV_BY_UUID_PATH, link_contents);
 	if (ret < 0)
 		return 0;
 
 	link_dev_name = basename(&link_contents[0]);
 	dev = basename(dev);
-	debug_printf(2, "basename('%s'): '%s'\n", link_contents, link_dev_name);
+	debug_printf(3, "basename('%s'): '%s'\n", link_contents, link_dev_name);
 	if (strcmp(dev, link_dev_name))
 		return 0;
 	return 1;
@@ -192,13 +192,14 @@ static char *check_mount_line(int line_nr, char *line)
 	// Linux's /proc/mounts has spaces like this \040
 	replace_escapes(&mnt[0]);
 	char *file = eyefi_file_on(REQM, &mnt[0]);
-	debug_printf(4, "looking for EyeFi file here: '%s'\n", file);
 
 	struct stat statbuf;
 	int statret;
 	statret = stat(file, &statbuf);
 	free(file);
-	if ((errno == ENOENT) && dev_has_eyefi_vol_id(&dev[0])) {
+	debug_printf(2, "looking for EyeFi file here: '%s' (statret: %d)\n", file, statret);
+	if ((statret == -1) && (errno == ENOENT)
+	    && dev_has_eyefi_vol_id(&dev[0])) {
 		debug_printf(1, "found mount  '%s' that looks like Eye-Fi, "
 				"but has no control files\n", mnt);
 		int control_creation = create_control_files(&mnt[0]);

@@ -825,7 +825,10 @@ void testit0(void)
 
 	//start_direct();
 	print_direct_status();
-	enable_direct_mode(60, 120);
+	//enable_direct_mode(60, 120);
+	enable_direct_mode(DIRECT_WAIT_FOREVER, DIRECT_WAIT_FOREVER);
+	print_direct_status();
+	start_direct();
 	exit(0);
 	//char new_cmd[] = {'O', 0x06, 0x0d, 0x0a, 0x31, 0x30, 0x2e, 0x36, 0x2e, 0x30, 0x2e, 0x31, 0x33, 0x37};
 

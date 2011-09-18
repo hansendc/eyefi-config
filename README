@@ -27,7 +27,7 @@ fetching EyeFi card log part 4/4...done
 
 Test a network (without adding to the card:
 
-# ./eyefitest -t ESSID -p password
+# ./eyefi-config -t ESSID -p password
 trying to connect to WPA network: 'MYESSID' with passphrase: 'password'
 Testing connecion to 'MYESSID' (1): locating network
 Testing connecion to 'MYESSID' (2): verifying network key.....

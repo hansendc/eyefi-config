@@ -21,7 +21,7 @@ eyefi-config: $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $@
 
 clean:
-	rm eyefi-config core  $(OBJS) cscope*
+	rm -f eyefi-config core  $(OBJS) cscope*
 
 eyefi-chdk.o: eyefi-config.h 
 eyefi-config.o: eyefi-config.h

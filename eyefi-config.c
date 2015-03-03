@@ -886,11 +886,10 @@ void testit0(void)
 	//wlan_disable();
 	printf("WLAN enabled: %d\n", wlan_enabled());
 	for (i = 10; i <= 13; i++) {
-		int printed;
 		zero_card_files();
 		card_info_cmd(i);
 		printf("UNKNOWN %d result:\n", i);
-		printed = dumpbuf(eyefi_buf, 64);
+		dumpbuf(eyefi_buf, 64);
 		printf("WLAN enabled: %d\n", wlan_enabled());
 	}
 	i = 0xff;
@@ -1108,7 +1107,6 @@ void add_log_piece(u8 *log, int log_len, u8 *piece, int piece_pos, int piece_siz
 int get_log_into(u8 *resbuf)
 {
 	int total_bytes = 0;
-	int ret;
 	int i;
 	u32 log_start;
 	u32 log_end;
@@ -1127,7 +1125,7 @@ int get_log_into(u8 *resbuf)
 		debug_printf(1, "fetching EyeFi card log part %d/%d...",
 				i+1, log_pieces);
 		fflush(NULL);
-		ret = get_log_at_offset(EYEFI_BUF_SIZE*i);
+		get_log_at_offset(EYEFI_BUF_SIZE*i);
 		debug_printf(1, "done\n");
 		u8 *log_piece;
 		u32 log_piece_size;

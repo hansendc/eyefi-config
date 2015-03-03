@@ -492,9 +492,9 @@ int hex_only(char *str)
 	int i;
 
 	for (i = 0; i < strlen(str); i++) {
-		if (((str[i] >= 'a') && str <= 'f') ||
-		    ((str[i] >= 'A') && str <= 'F') ||
-		    ((str[i] >= '0') && str <= '9')) {
+		if (((str[i] >= 'a') && str[i] <= 'f') ||
+		    ((str[i] >= 'A') && str[i] <= 'F') ||
+		    ((str[i] >= '0') && str[i] <= '9')) {
 			continue;
 		}
 		return 0;

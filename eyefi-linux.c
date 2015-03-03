@@ -183,6 +183,10 @@ static char *check_mount_line(int line_nr, char *line)
 	read = sscanf(&line[0], "%s %s %s %s %d %d",
 			&dev[0], &mnt[0], &fs[0], &opt[0],
 			&garb1, &garb2);
+	if (read != 6) {
+		debug_printf(2, "Unable to parse mount line: '%s'\n", line);
+		return NULL;
+	}
 	// only look at fat filesystems:
 	if (!fs_is(fs, "msdos") && !fs_is(fs, "vfat")) {
 		debug_printf(4, "fs[%d] at '%s' is not fat, skipping...\n",

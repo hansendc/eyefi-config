@@ -112,6 +112,25 @@ void print_configured_nets(void)
 	}
 }
 
+void print_direct_mode_info(void)
+{
+	struct pascal_string *direct_mode_ssid;
+	struct pascal_string *direct_mode_pass;
+	debug_printf(2, "%s()\n", __func__);
+
+	card_info_cmd(DIRECT_MODE_SSID);
+	direct_mode_ssid = eyefi_response();
+	printf("Direct mode SSID:  '");
+	print_pascal_string(direct_mode_ssid);
+	printf("'\n");
+
+	card_info_cmd(DIRECT_MODE_PASS);
+	direct_mode_pass = eyefi_response();
+	printf("Direct mode password:  '");
+	print_pascal_string(direct_mode_pass);
+	printf("'\n");
+}
+
 int try_connection_to(char *essid, char *ascii_password)
 {
 	int i;
@@ -349,6 +368,7 @@ void usage(void)
 	printf("  --endless	fetch endless storage information\n");
 	printf("  --endless=<NN> set the endless storage percentage\n");
 	printf("  --endless=[enable/disable]\n");
+	printf("  --direct-mode-info\n");
 	exit(4);
 }
 
@@ -428,15 +448,17 @@ int main(int argc, char *argv[])
 	static int wifi_radio_on = 0;
 	static int endless = 0;
 	static int eject = 0;
+	static int direct_mode_info = 0;
 	static int debug_level_opt = 0;
 	static struct option long_options[] = {
-		{"force", 	  0, &force, 1},
-		{"help",	  0,   NULL, 'h'},
-		{"transfer-mode", 2, &transfer_mode, 1},
-		{"wifi-radio",    2, &wifi_radio_on, 1},
-		{"endless",       2, &endless,       1},
-		{"eject",	  2, &eject,	     1},
-		{"debug",	  2, &debug_level_opt, 'd'},
+		{"force", 	  	0, &force, 1},
+		{"help",	  	0,   NULL, 'h'},
+		{"transfer-mode",	2, &transfer_mode,	1},
+		{"wifi-radio",  	2, &wifi_radio_on,	1},
+		{"endless",		2, &endless,       	1},
+		{"eject",	  	2, &eject,	    	1},
+		{"debug",		2, &debug_level_opt,	'd'},
+		{"direct-mode-info", 	2, &direct_mode_info,	1},
 		{0, 0, 0, 0}
 	};
 
@@ -484,6 +506,11 @@ int main(int argc, char *argv[])
 		if (endless) {
 			handle_endless(optarg);
 			endless = 0;
+			continue;
+		}
+		if (direct_mode_info) {
+			print_direct_mode_info();
+			direct_mode_info = 0;
 			continue;
 		}
 		switch (c) {

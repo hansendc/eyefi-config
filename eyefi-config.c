@@ -1011,6 +1011,16 @@ struct card_info_rsp_key *fetch_card_key(void)
 	return key;
 }
 
+struct card_info_rsp_key *fetch_card_upload_key(void)
+{
+	struct card_info_rsp_key *key;
+
+	debug_printf(2, "%s()\n", __func__);
+	card_info_cmd(UPLOAD_KEY);
+	key = eyefi_buf;
+	return key;
+}
+
 int issue_noarg_command(u8 cmd)
 {
 	struct noarg_request req;

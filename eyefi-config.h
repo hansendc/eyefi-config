@@ -181,6 +181,7 @@ enum card_info_subcommand {
 	ENDLESS	      = 27, // 0x1b
 	DIRECT_WAIT_FOR_CONNECTION = 0x24, // 0 == "direct mode off"
 	DIRECT_WAIT_AFTER_TRANSFER = 0x25, // set to 60 when direct mode off
+	UPLOAD_KEY    = 0xfd, //
 	UNKNOWN_ff    = 0xff, // The D90 does this, and it looks to
 			      // return a 1-byte response length
 			      // followed by a number of 8-byte responses
@@ -361,6 +362,7 @@ int card_info_cmd(enum card_info_subcommand cmd);
 int card_config_set(enum card_info_subcommand cmd, struct var_byte_response *args);
 void *eyefi_response(void);
 struct card_info_rsp_key *fetch_card_key(void);
+struct card_info_rsp_key *fetch_card_upload_key(void);
 int wlan_enabled(void);
 void wlan_disable(int do_disable);
 enum transfer_mode fetch_transfer_mode(void);

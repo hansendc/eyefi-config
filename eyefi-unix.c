@@ -57,6 +57,15 @@ void print_card_key(void)
 	printf("'\n");
 }
 
+void print_upload_key(void)
+{
+	debug_printf(2, "%s()\n", __func__);
+	struct card_info_rsp_key *foo = fetch_card_upload_key();
+	printf("card upload key (len: %d): '", foo->key.length);
+	print_pascal_string(&foo->key);
+	printf("'\n");
+}
+
 void scan_print_nets(void)
 {
 	int i;
@@ -126,7 +135,7 @@ int try_connection_to(char *essid, char *ascii_password)
 		issue_noarg_command('s');
 		rsp = *rsp_ptr;
 		char *state = net_test_state_name(rsp);
-		debug_printf(3, "net state: 0x%02x name: '%s'\n", rsp, state);
+		debug_printf(1, "net state: 0x%02x name: '%s'\n", rsp, state);
 		if (rsp == last_rsp) {
 			eyefi_printf(".");
 			fflush(NULL);;
@@ -331,6 +340,7 @@ void usage(void)
 	printf("  -k		print card unique key\n");
 	printf("  -l		dump card log\n");
 	printf("  -m	 	print card mac\n");
+	printf("  -u	 	print card upload key\n");
 	printf("  --transfer-mode[=mode]  print or change card transfer mode\n");
 	printf("                          or =help to list modes\n");
 	printf("  --wifi-radio  fetch wifi radio state\n");
@@ -433,7 +443,7 @@ int main(int argc, char *argv[])
 	if (argc == 1)
 		usage();
 
-	char optarg_shorts[] = "a:bcd:kflmp:r:st:z";
+	char optarg_shorts[] = "a:bcd:kflmp:r:st:uz";
 	while ((cint = getopt_long_only(argc, argv, optarg_shorts,
 		&long_options[0], &option_index)) != -1) {
 		c = cint;
@@ -509,6 +519,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'p':
 			passwd = strdup(optarg);
+			break;
+		case 'u':
+			print_upload_key();
 			break;
 		case 's':
 			scan_print_nets();

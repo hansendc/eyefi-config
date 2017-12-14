@@ -160,7 +160,7 @@ int try_connection_to(char *essid, char *ascii_password)
 			fflush(NULL);;
 		} else {
 			if (rsp)
-				eyefi_printf("\nTesting connecion to '%s' (%d): %s", essid, rsp, state);
+				eyefi_printf("\nTesting connection to '%s' (%d): %s", essid, rsp, state);
 			last_rsp = rsp;
 		}
 
@@ -255,7 +255,7 @@ void handle_endless(char *arg)
 			percentage = atoi(arg);
 			if ((percentage >= 100) ||
 			    (percentage <= 0)) {
-				printf("invalid enless argument: %s\n", arg);
+				printf("invalid endless argument: %s\n", arg);
 				return;
 			}
 			set_endless_percentage(percentage);
@@ -565,7 +565,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	debug_printf(3, "after arguments1 essid: '%s' passwd: '%s'\n", essid, passwd);
+	debug_printf(3, "after arguments essid: '%s' passwd: '%s'\n", essid, passwd);
 	if (network_action && essid) {
 		int ret = 0;
 		init_card();

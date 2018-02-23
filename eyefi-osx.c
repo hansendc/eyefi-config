@@ -16,9 +16,11 @@ int fd_set_no_cache(int fd)
 int fd_flush(int fd)
 {
 	int ret;
-	ret = fsync(fd);
-	if (ret)
-		perror("fsync() failed");
+
+	ret = fcntl(fd, F_FULLFSYNC);
+	if (ret == -1)
+		perror("fcntl() failed");
+
 	return ret;
 }
 

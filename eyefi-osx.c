@@ -96,3 +96,18 @@ void eject_card(void)
 	system(cmd);
 	exit(0);
 }
+
+int majflts(void)
+{
+	struct rusage usage;
+	int maj_flt;
+	int cmaj_flt;
+
+	getrusage(RUSAGE_SELF, &usage);
+	maj_flt = usage.ru_majflt;
+
+	getrusage(RUSAGE_CHILDREN, &usage);
+	cmaj_flt = usage.ru_majflt;
+
+	return maj_flt + cmaj_flt;
+}

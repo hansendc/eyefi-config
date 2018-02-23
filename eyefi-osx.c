@@ -53,7 +53,7 @@ char *locate_eyefi_mount(void)
 	}
 
 	for(i = 0; i < numfs; i++) {
-		if(fsbuf[i].f_type != 5) continue; // Not MSDOS
+		if(strcasecmp(fsbuf[i].f_fstypename, "msdos") != 0) continue; // Not MSDOS
 
 		char *file = eyefi_file_on(REQM, fsbuf[i].f_mntonname);
 		debug_printf(2, "looking for EyeFi file here: '%s'\n", file);

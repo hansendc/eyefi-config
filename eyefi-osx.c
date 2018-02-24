@@ -93,7 +93,7 @@ char *locate_eyefi_mount(void)
 void eject_card(void)
 {
 	char cmd[PATHNAME_MAX];
-	sprintf(cmd, "umount '%s'", locate_eyefi_mount());
+	sprintf(cmd, "diskutil unmount '%s'", locate_eyefi_mount());
 	debug_printf(1, "ejecting card: '%s'\n", cmd);
 	system(cmd);
 	exit(0);

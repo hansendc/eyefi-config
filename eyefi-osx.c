@@ -21,7 +21,7 @@ int fd_flush(int fd)
 	if (ret == -1)
 		perror("fcntl() failed");
 
-	system("sudo purge");
+	system("sudo /usr/sbin/purge");
 
 	return ret;
 }

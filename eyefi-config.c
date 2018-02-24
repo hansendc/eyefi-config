@@ -192,32 +192,6 @@ static char *eyefi_file(enum eyefi_file file)
 	return eyefi_file_on(file, locate_eyefi_mount());
 }
 
-int majflts(void)
-{
-	static char buf[1000];
-	static char garb[1000];
-	int min_flt;
-	int cmin_flt;
-	int maj_flt;
-	int cmaj_flt;
-	int gi;
-	int fd;
-
-	// touch it beforehand so it doesn't fault
-	memset(buf, 0, 1000);
-	memset(garb, 0, 1000);
-
-	fd = open("/proc/self/stat", O_RDONLY);
-	read(fd, buf, 1000);
-	sscanf(buf, "%d %s %s %d %d %d %d %d %d %d %d %d %d %s",
-		&gi, garb, garb, &gi, &gi, &gi, &gi, &gi, &gi,
-		&min_flt, &cmin_flt, &maj_flt, &cmaj_flt,
-		garb);
-	//printf("%d %d %d %d\n", min_flt, cmin_flt, maj_flt, cmaj_flt);
-	close(fd);
-	return maj_flt+cmaj_flt;
-}
-
 // How many pages just came in from the disk?
 int nr_fresh_pages(int fd, int len)
 {
@@ -225,7 +199,7 @@ int nr_fresh_pages(int fd, int len)
 	int faults_before;
 	int faults_after;
 	char *addr;
-	int tmp;
+	int tmp = 0;
 	int i;
 
 	addr = mmap(NULL, len, PROT_READ, MAP_FILE|MAP_SHARED, fd, 0);

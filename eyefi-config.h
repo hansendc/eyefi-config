@@ -66,6 +66,7 @@ extern int eyefi_printf(const char *fmt, ...);
  * These have to be created by the unix variants
  */
 extern int fd_flush(int);
+extern int fd_set_no_cache(int);
 
 /*
  * Do some kernel-style types to make

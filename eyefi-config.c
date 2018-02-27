@@ -257,19 +257,21 @@ retry:
 	if (fd < 0)
 		open_error(file, fd);
 	fd_flush(fd);
-	// fd_flush() does not appear to be working 100% of the
-	// time.  It is not working on my Thinkpad, but works
-	// fine on the same kernel on the Ideapad.  Bizarre.
-	// This at least works around it by detecting when we
-	// did and did not actually bring in pages from the
-	// disk.
-	nr_fresh = nr_fresh_pages(fd, EYEFI_BUF_SIZE);
-	if (!nr_fresh) {
-		tries++;
-		debug_printf(2, "fd_flush(%d) was unsuccessful(%d), retrying (%d)...\n",
-				fd, nr_fresh, tries);
-		close(fd);
-		goto retry;
+	if (fd_set_no_cache(fd) != 0) {
+		// fd_flush() does not appear to be working 100% of the
+		// time.  It is not working on my Thinkpad, but works
+		// fine on the same kernel on the Ideapad.  Bizarre.
+		// This at least works around it by detecting when we
+		// did and did not actually bring in pages from the
+		// disk.
+		nr_fresh = nr_fresh_pages(fd, EYEFI_BUF_SIZE);
+		if (!nr_fresh) {
+			tries++;
+			debug_printf(2, "fd_flush(%d) was unsuccessful(%d), retrying (%d)...\n",
+					fd, nr_fresh, tries);
+			close(fd);
+			goto retry;
+		}
 	}
 	ret = read(fd, eyefi_buf, EYEFI_BUF_SIZE);
 	if ((eyefi_debug_level >= 3) ||
@@ -322,6 +324,7 @@ void write_to(enum eyefi_file __file, void *stuff, int len)
 	memset(eyefi_buf, 0, EYEFI_BUF_SIZE);
 	memcpy(eyefi_buf, stuff, len);
 	fd = open(file, O_RDWR|O_CREAT, 0600);
+	fd_set_no_cache(fd);
 	if (fd < 0 )
 		open_error(file, fd);
 	if ((eyefi_debug_level >= 3) ||

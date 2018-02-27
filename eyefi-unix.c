@@ -212,7 +212,7 @@ const char *__index_to_str(const char **array, int index, int array_size)
 }
 #define index_to_str(chr_array, index)	__index_to_str(chr_array, index, ARRAY_SIZE(chr_array))
 
-enum transfer_mode str_to_transfer_mode(char *mode_str)
+int str_to_transfer_mode(char *mode_str)
 {
 	return index_of_str(mode_str, transfer_mode_names);
 }
@@ -221,7 +221,7 @@ void handle_transfer_mode(char *arg)
 {
 	enum transfer_mode mode;
 	const char *mode_name;
-	enum transfer_mode new_mode;
+	int new_mode;
 	if (arg) {
 		new_mode = str_to_transfer_mode(arg);
 		if (new_mode == -1) {
@@ -235,7 +235,7 @@ void handle_transfer_mode(char *arg)
 			}
 			exit(1);
 		}
-		set_transfer_mode(new_mode);
+		set_transfer_mode((enum transfer_mode)new_mode);
 	}
 
 	mode = fetch_transfer_mode();

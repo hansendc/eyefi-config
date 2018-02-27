@@ -54,6 +54,11 @@ static char *replace_escapes(char *str)
 	return str;
 }
 
+int fd_set_no_cache(int fd)
+{
+	return -1; // not implemented
+}
+
 int fd_flush(int fd)
 {
 	int ret;

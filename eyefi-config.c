@@ -225,7 +225,7 @@ int nr_fresh_pages(int fd, int len)
 	int faults_before;
 	int faults_after;
 	char *addr;
-	int tmp;
+	int tmp = 0;
 	int i;
 
 	addr = mmap(NULL, len, PROT_READ, MAP_FILE|MAP_SHARED, fd, 0);

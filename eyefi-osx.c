@@ -183,13 +183,10 @@ static char *check_mount_line(int line_nr, char *line)
 	char mnt[LINEBUFSZ];
 	char fs[LINEBUFSZ];
 	char opt[LINEBUFSZ];
-	int garb1;
-	int garb2;
 	int read;
-	read = sscanf(&line[0], "%s %s %s %s %d %d",
-			&dev[0], &mnt[0], &fs[0], &opt[0],
-			&garb1, &garb2);
-	if (read != 6) {
+	read = sscanf(&line[0], "%s on %s (%[a-z]s %s",
+			&dev[0], &mnt[0], &fs[0], &opt[0]);
+	if (read != 3) {
 		debug_printf(2, "Unable to parse mount line: '%s'\n", line);
 		return NULL;
 	}
@@ -199,7 +196,7 @@ static char *check_mount_line(int line_nr, char *line)
 				line_nr, mnt);
 		return NULL;
 	}
-	// Linux's /proc/mounts has spaces like this \040
+	// typical /proc/mounts has spaces like this \040
 	replace_escapes(&mnt[0]);
 	char *file = eyefi_file_on(REQM, &mnt[0]);
 
